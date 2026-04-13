@@ -3744,9 +3744,21 @@ function renderTasksByMember(allTasks){
         <span style="color:${(t.done||t.status==='concluido')?'var(--green)':'var(--text-3)'};font-size:13px">${(t.done||t.status==='concluido')?'✓':'○'}</span>
         <span style="flex:1;${(t.done||t.status==='concluido')?'text-decoration:line-through;color:var(--text-3)':''}">${t.text||t.task}</span>
         ${t.date?`<span style="color:var(--text-3);font-size:10px">${fmtDateBR(t.date)}</span>`:''}
-      </div>`).join('')}${mt.length>5?`<div style="font-size:11px;color:var(--text-3);margin-top:6px;text-align:center">+${mt.length-5} mais</div>`:''}</div>`:''}
+      </div>`).join('')}${mt.length>5?`<div id="tm-extra-${m.k}" style="display:none">${mt.slice(5).map(t=>`<div style="font-size:11.5px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+        <span style="color:${(t.done||t.status==='concluido')?'var(--green)':'var(--text-3)'};font-size:13px">${(t.done||t.status==='concluido')?'✓':'○'}</span>
+        <span style="flex:1;${(t.done||t.status==='concluido')?'text-decoration:line-through;color:var(--text-3)':''}">${t.text||t.task}</span>
+        ${t.date?`<span style="color:var(--text-3);font-size:10px">${fmtDateBR(t.date)}</span>`:''}
+      </div>`).join('')}</div><div onclick="toggleMemberTasks('${m.k}')" style="font-size:11px;color:var(--navy);margin-top:6px;text-align:center;cursor:pointer;font-weight:600;padding:4px;border-radius:6px;background:var(--bg);transition:all .15s" id="tm-toggle-${m.k}">▼ Ver +${mt.length-5} tarefas</div>`:''}</div>`:''}
     </div>`;
   }).join('');
+}
+function toggleMemberTasks(k){
+  const extra=document.getElementById('tm-extra-'+k);
+  const btn=document.getElementById('tm-toggle-'+k);
+  if(!extra||!btn)return;
+  const open=extra.style.display==='none';
+  extra.style.display=open?'block':'none';
+  btn.textContent=open?'▲ Recolher':'▼ Ver mais tarefas';
 }
 function saveMetas(){S.set('metas_rel',{fat:+document.getElementById('rp-meta-fat').value||25000,posts:+document.getElementById('rp-meta-posts').value||40});renderRel();toast('Metas salvas','ok');}
 function exportarRelatorio(){
