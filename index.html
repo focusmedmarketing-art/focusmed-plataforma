@@ -1695,72 +1695,64 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const FM_DOC='focusmed-data';
 
-// ══ STORAGE com SYNC Firebase ══
-// Lê do localStorage (instantâneo) e sincroniza com Firestore (nuvem)
+// ══ STORAGE com SYNC Firebase (bidirecional) ══
 const _syncQueue=new Set();
 let _syncTimer=null;
+let _ignoreSnapshot=false; // evita loop: set → sync → onSnapshot → set
 const S={
   get:(k,d)=>{try{const v=localStorage.getItem('fm2_'+k);return v?JSON.parse(v):d;}catch{return d;}},
   set:(k,v)=>{
     try{localStorage.setItem('fm2_'+k,JSON.stringify(v));}catch{}
-    // Agenda sync para Firestore (debounce 2s para agrupar mudanças)
     _syncQueue.add(k);
     if(_syncTimer)clearTimeout(_syncTimer);
-    _syncTimer=setTimeout(()=>_syncToFirestore(),2000);
+    _syncTimer=setTimeout(()=>_syncToFirestore(),1500);
   }
 };
-// Envia dados alterados para Firestore
+
 function _syncToFirestore(){
   if(!_syncQueue.size)return;
   const data={};
   _syncQueue.forEach(k=>{data['fm2_'+k]=localStorage.getItem('fm2_'+k)||''});
   _syncQueue.clear();
+  _ignoreSnapshot=true;
   db.collection('app').doc(FM_DOC).set(data,{merge:true})
-    .then(()=>console.log('☁️ Sync OK'))
-    .catch(e=>console.warn('Sync err:',e));
+    .then(()=>{console.log('☁️ Enviado para nuvem');setTimeout(()=>{_ignoreSnapshot=false;},3000);})
+    .catch(e=>{console.warn('Sync err:',e);_ignoreSnapshot=false;});
 }
-// Ao carregar, puxa dados do Firestore e sobrescreve o local se Firestore tiver dados
-let _firebaseLoaded=false;
-function _loadFromFirestore(){
+// Prevenir sync desnecessário no boot (initData seta dados default que já existem na nuvem)
+let _bootDone=false;
+
+// Carrega Firestore → localStorage ANTES do initData
+function _bootFromFirestore(callback){
   db.collection('app').doc(FM_DOC).get().then(snap=>{
     if(snap.exists){
       const data=snap.data();
+      const keys=Object.keys(data);
+      if(keys.length>0){
+        console.log('☁️ Carregando '+keys.length+' chaves do Firebase...');
+        keys.forEach(k=>{if(data[k]!=='')localStorage.setItem(k,data[k]);});
+      }
+    }
+    callback();
+    // Listener em tempo real — sincroniza de QUALQUER dispositivo
+    db.collection('app').doc(FM_DOC).onSnapshot(snap=>{
+      if(!snap.exists||_ignoreSnapshot)return;
+      const data=snap.data();
       let changed=false;
       Object.keys(data).forEach(k=>{
-        const localVal=localStorage.getItem(k);
-        // Se Firestore tem dado e local não tem, ou se local é dados default (initData rodou antes)
-        if(data[k]&&data[k]!==''){
-          // Firestore sempre vence (fonte da verdade na nuvem)
-          if(localVal!==data[k]){
-            localStorage.setItem(k,data[k]);
-            changed=true;
-          }
+        if(data[k]!==''&&localStorage.getItem(k)!==data[k]){
+          localStorage.setItem(k,data[k]);
+          changed=true;
         }
       });
       if(changed){
-        console.log('☁️ Dados carregados do Firebase — recarregando...');
-        _firebaseLoaded=true;
-        // Re-renderizar a página atual
+        console.log('☁️ Sync recebido — atualizando tela');
         if(typeof go==='function')go(curPage||'dashboard');
       }
-    }
-    _firebaseLoaded=true;
-  }).catch(e=>{console.warn('Firebase load err:',e);_firebaseLoaded=true;});
-  // Listener em tempo real — quando outro dispositivo alterar
-  db.collection('app').doc(FM_DOC).onSnapshot(snap=>{
-    if(!snap.exists||!_firebaseLoaded)return;
-    const data=snap.data();
-    let changed=false;
-    Object.keys(data).forEach(k=>{
-      if(data[k]&&localStorage.getItem(k)!==data[k]){
-        localStorage.setItem(k,data[k]);
-        changed=true;
-      }
     });
-    if(changed&&typeof go==='function'){
-      console.log('☁️ Sync recebido de outro dispositivo');
-      go(curPage||'dashboard');
-    }
+  }).catch(e=>{
+    console.warn('Firebase offline, usando localStorage:',e);
+    callback();
   });
 }
 const uid=()=>'id'+Date.now()+Math.random().toString(36).substr(2,5);
@@ -3589,17 +3581,23 @@ function toast(msg,type=''){const t=document.getElementById('toast');t.textConte
 function gsearch(q){if(!q)return;const clients=S.get('clients',[]);const m=clients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));if(m.length===1)go('cliente',m[0].id);}
 
 // ══ BOOT ══
-initData();
-// Carregar view preferido de arquivos
-const fv=S.get('file_view','grid');fileView=fv;
-// Carregar última página ou dashboard
-const last=S.get('last_page',null);
-if(last&&last.page&&last.page!=='cliente'){go(last.page);}
-else{renderDash();renderClients();}
-// Inicializar selects
-setTimeout(()=>{renderClients();},50);
-// Carregar dados do Firebase (sobrescreve local se houver dados na nuvem)
-_loadFromFirestore();
+// 1. Carregar dados do Firebase PRIMEIRO (fonte da verdade)
+// 2. Depois rodar initData (só preenche o que não existe)
+// 3. Depois renderizar
+_bootFromFirestore(function(){
+  _ignoreSnapshot=true; // não reagir ao próprio initData
+  initData();
+  _ignoreSnapshot=false;
+  _bootDone=true;
+  // Limpar queue do initData (não precisa sincronizar dados default)
+  _syncQueue.clear();if(_syncTimer){clearTimeout(_syncTimer);_syncTimer=null;}
+  const fv=S.get('file_view','grid');fileView=fv;
+  const last=S.get('last_page',null);
+  if(last&&last.page&&last.page!=='cliente'){go(last.page);}
+  else{renderDash();renderClients();}
+  setTimeout(()=>{renderClients();},50);
+  console.log('✅ FocusMed iniciado — dados sincronizados');
+});
 </script>
 </body>
 </html>
