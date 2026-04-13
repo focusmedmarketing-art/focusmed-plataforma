@@ -1144,6 +1144,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="card-body"><div class="g3" id="rp-member-cards"></div></div>
   </div>
 
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <span class="card-title">📋 Tarefas por Membro</span>
+      <div class="date-filter" id="tm-filter">
+        <button class="df-btn" onclick="tmFilter('hoje',this)">Hoje</button>
+        <button class="df-btn" onclick="tmFilter('semana',this)">7 dias</button>
+        <button class="df-btn" onclick="tmFilter('15dias',this)">15 dias</button>
+        <button class="df-btn active" onclick="tmFilter('mes',this)">Mês</button>
+        <button class="df-btn" onclick="tmFilter('ano',this)">Ano</button>
+        <button class="df-btn" onclick="tmFilter('todos',this)">Todos</button>
+      </div>
+    </div>
+    <div class="card-body"><div class="g3" id="rp-tasks-member"></div></div>
+  </div>
+
   <div class="g2" style="margin-bottom:16px">
     <div class="card"><div class="card-header"><span class="card-title">✅ Ciclo de Aprovação</span></div>
       <div class="card-body" id="rp-aprov"></div>
@@ -1758,6 +1773,26 @@ function _bootFromFirestore(callback){
 const uid=()=>'id'+Date.now()+Math.random().toString(36).substr(2,5);
 const tod=()=>new Date().toISOString().split('T')[0];
 const fmtR=(n)=>'R$ '+Number(n).toLocaleString('pt-BR');
+// Helper: filtrar array por período usando campo de data
+function filterByPeriod(items,period,dateField,customDe,customAte){
+  if(!period||period==='todos')return items;
+  const now=new Date();const todS=tod();
+  let cutS='';
+  if(period==='hoje')cutS=todS;
+  else if(period==='semana'){const d=new Date();d.setDate(d.getDate()-7);cutS=d.toISOString().split('T')[0];}
+  else if(period==='15dias'){const d=new Date();d.setDate(d.getDate()-15);cutS=d.toISOString().split('T')[0];}
+  else if(period==='mes'){cutS=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;}
+  else if(period==='ano')cutS=`${now.getFullYear()}-01-01`;
+  else if(period==='custom'||period==='custom-date'){
+    const de=customDe||'';const ate=customAte||'';
+    return items.filter(i=>{const d=i[dateField]||'';return(!de||d>=de)&&(!ate||d<=ate);});
+  }
+  if(cutS){
+    if(period==='hoje')return items.filter(i=>(i[dateField]||'')===cutS);
+    return items.filter(i=>(i[dateField]||'')>=cutS);
+  }
+  return items;
+}
 const MS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MSH=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
@@ -2001,10 +2036,13 @@ function filterTasks(f,btn){
   renderTaskList();
 }
 function renderTaskList(){
-  const tasks=S.get('tasks',[]);
+  let tasks=S.get('tasks',[]);
+  // Aplicar filtro de data
+  const customVal=document.getElementById('task-custom-date')?.querySelector('input')?.value||'';
+  tasks=filterByPeriod(tasks,taskFilter,'date',customVal,customVal);
   const el=document.getElementById('d-tasks');
-  const pending=tasks.filter(t=>!t.done).slice(0,5);
-  const done=tasks.filter(t=>t.done).slice(0,2);
+  const pending=tasks.filter(t=>!t.done).slice(0,8);
+  const done=tasks.filter(t=>t.done).slice(0,3);
   const all=[...pending,...done];
   if(!all.length){el.innerHTML='<div class="empty"><div class="empty-icon">✅</div><p>Sem tarefas pendentes!</p></div>';return;}
   el.innerHTML=all.map(t=>`<div class="task-row">
@@ -2030,7 +2068,8 @@ function delTask(id){S.set('tasks',S.get('tasks',[]).filter(x=>x.id!==id));rende
 let chartFilter='mes';
 function setChartFilter(f,btn){chartFilter=f;if(btn){document.querySelectorAll('.card:nth-of-type(2) .df-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}renderChart();}
 function renderChart(){
-  const tasks=[...S.get('tasks',[]),...Object.values(S.get('cli_tasks',{})).flat()];
+  let tasks=[...S.get('tasks',[]),...Object.values(S.get('cli_tasks',{})).flat()];
+  tasks=filterByPeriod(tasks,chartFilter,'date');
   const members=[{n:'João Victor',k:'JV',c:'#0B1F3A'},{n:'Bia',k:'Bia',c:'#D4B054'},{n:'Leo',k:'Leo',c:'#8B5CF6'}];
   const maxV=Math.max(...members.map(m=>tasks.filter(t=>t.resp===m.k).length),1);
   const el=document.getElementById('d-chart');
@@ -3233,8 +3272,18 @@ let rpPeriod='mes';
 function rpFilter(f,btn){rpPeriod=f;if(btn){document.querySelectorAll('#p-relatorios .df-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}renderRel();}
 function renderRel(){
   const person=document.getElementById('rp-pessoa')?.value||'all';
-  const tasks=[...S.get('tasks',[]),...Object.values(S.get('cli_tasks',{})).flat(),...Object.values(S.get('team_tasks',{})).flat()];
-  const filtered=tasks.filter(t=>person==='all'||t.resp===person||t.member===person);
+  const rpDe=document.getElementById('rp-de')?.value||'';
+  const rpAte=document.getElementById('rp-ate')?.value||'';
+  let tasks=[...S.get('tasks',[]),...Object.values(S.get('cli_tasks',{})).flat(),...Object.values(S.get('team_tasks',{})).flat()];
+  // Filtrar por pessoa
+  tasks=tasks.filter(t=>person==='all'||t.resp===person||t.member===person);
+  // Filtrar por período
+  if(rpPeriod==='custom'&&(rpDe||rpAte)){
+    tasks=filterByPeriod(tasks,'custom','date',rpDe,rpAte);
+  }else if(rpPeriod!=='todos'){
+    tasks=filterByPeriod(tasks,rpPeriod,'date');
+  }
+  const filtered=tasks;
   const done=filtered.filter(t=>t.done||t.status==='concluido').length;
   const atrasadas=filtered.filter(t=>isOverdue(t)).length;
   const postsAll=S.get('posts',[]);
@@ -3361,11 +3410,61 @@ function renderRel(){
     }).join('');
   }
 
-  document.getElementById('rp-hist').innerHTML=filtered.filter(t=>t.done||t.status==='concluido').slice(0,10).map(t=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+  // Histórico com filtro de tipo e botão remover
+  const histFilter=document.getElementById('rp-hist-filter')?.value||'';
+  let histItems=filtered.filter(t=>t.done||t.status==='concluido');
+  if(histFilter==='tarefa')histItems=histItems.filter(t=>!t.fmt);
+  else if(histFilter==='post')histItems=histItems.filter(t=>!!t.fmt);
+  document.getElementById('rp-hist').innerHTML=histItems.slice(0,20).map(t=>{
+    const src=t.id?.startsWith('t')?'tasks':t.id?.startsWith('e')||t.id?.startsWith('s')||t.id?.startsWith('d')||t.id?.startsWith('co')?'team':'cli';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
     <div style="width:26px;height:26px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:12px;color:white;font-weight:700;flex-shrink:0">✓</div>
     <span style="flex:1;font-size:13px;color:var(--text)">${t.text||t.task}</span>
+    ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
     <span class="resp-badge resp-${t.resp||t.member||'JV'}">${t.resp||t.member||''}</span>
-  </div>`).join('')||'<div class="empty"><div class="empty-icon">📊</div><p>Nenhuma atividade no período.</p></div>';
+    <button onclick="delHistTask('${t.id}','${src}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:2px" title="Remover">×</button>
+  </div>`;
+  }).join('')||'<div class="empty"><div class="empty-icon">📊</div><p>Nenhuma atividade no período.</p></div>';
+
+  // Tarefas por Membro (com filtro de data)
+  renderTasksByMember(filtered);
+}
+
+function delHistTask(id,src){
+  if(src==='tasks'){S.set('tasks',S.get('tasks',[]).filter(t=>t.id!==id));}
+  else if(src==='cli'){const all=S.get('cli_tasks',{});Object.keys(all).forEach(k=>{all[k]=(all[k]||[]).filter(t=>t.id!==id);});S.set('cli_tasks',all);}
+  else{const tt=S.get('team_tasks',{});Object.keys(tt).forEach(k=>{tt[k]=(tt[k]||[]).filter(t=>t.id!==id);});S.set('team_tasks',tt);}
+  renderRel();toast('Tarefa removida do histórico');
+}
+
+// Tarefas por Membro
+let tmPeriod='mes';
+function tmFilter(f,btn){tmPeriod=f;document.querySelectorAll('#tm-filter .df-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderRel();}
+function renderTasksByMember(allTasks){
+  const el=document.getElementById('rp-tasks-member');if(!el)return;
+  // Filtrar por período do tmFilter
+  let tasks=filterByPeriod(allTasks,tmPeriod,'date');
+  const members=[{n:'João Victor',k:'JV',c:'#0B1F3A'},{n:'Bia',k:'Bia',c:'#D4B054'},{n:'Leo',k:'Leo',c:'#8B5CF6'}];
+  el.innerHTML=members.map(m=>{
+    const mt=tasks.filter(t=>t.resp===m.k||t.member===m.k);
+    const doneM=mt.filter(t=>t.done||t.status==='concluido').length;
+    const pendM=mt.filter(t=>!(t.done||t.status==='concluido')).length;
+    const atrasM=mt.filter(t=>isOverdue(t)).length;
+    return`<div style="padding:16px;background:var(--bg);border-radius:var(--radius-sm);border-left:4px solid ${m.c}">
+      <div style="font-weight:800;color:var(--navy);font-size:15px">${m.n}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;text-align:center">
+        <div><div style="font-size:22px;font-weight:800;color:var(--navy)">${mt.length}</div><div style="font-size:10px;color:var(--text-3)">Total</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--green)">${doneM}</div><div style="font-size:10px;color:var(--text-3)">Concluídas</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--orange)">${pendM}</div><div style="font-size:10px;color:var(--text-3)">Pendentes</div></div>
+        <div><div style="font-size:22px;font-weight:800;color:var(--red)">${atrasM}</div><div style="font-size:10px;color:var(--text-3)">Atrasadas</div></div>
+      </div>
+      ${mt.length?`<div style="margin-top:10px">${mt.slice(0,5).map(t=>`<div style="font-size:11.5px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center">
+        <span style="color:${(t.done||t.status==='concluido')?'var(--green)':'var(--text-3)'};font-size:13px">${(t.done||t.status==='concluido')?'✓':'○'}</span>
+        <span style="flex:1;${(t.done||t.status==='concluido')?'text-decoration:line-through;color:var(--text-3)':''}">${t.text||t.task}</span>
+        ${t.date?`<span style="color:var(--text-3);font-size:10px">${fmtDateBR(t.date)}</span>`:''}
+      </div>`).join('')}${mt.length>5?`<div style="font-size:11px;color:var(--text-3);margin-top:6px;text-align:center">+${mt.length-5} mais</div>`:''}</div>`:''}
+    </div>`;
+  }).join('');
 }
 function saveMetas(){S.set('metas_rel',{fat:+document.getElementById('rp-meta-fat').value||25000,posts:+document.getElementById('rp-meta-posts').value||40});renderRel();toast('Metas salvas','ok');}
 function exportarRelatorio(){
