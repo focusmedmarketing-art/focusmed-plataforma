@@ -645,7 +645,26 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <button class="df-btn" onclick="filterTasks('ano',this)">Ano</button>
               <button class="df-btn" onclick="filterTasks('custom',this)">📅</button>
             </div>
-            <div id="task-custom-date" style="display:none"><input type="date" class="inp" style="width:140px;padding:5px 8px;font-size:11.5px" onchange="filterTasks('custom-date',null,this.value)"></div>
+            <div id="task-custom-date" style="display:none;position:relative">
+              <button class="df-btn" id="cal-picker-btn" onclick="toggleCalPicker()" style="font-size:11px;padding:5px 12px">Escolher data</button>
+              <div id="cal-picker" style="display:none;position:absolute;top:36px;right:0;z-index:999;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:16px;width:280px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                  <button onclick="calNav(-1,'year')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;color:var(--text-3)">«</button>
+                  <button onclick="calNav(-1,'month')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;color:var(--text-3)">‹</button>
+                  <span id="cal-title" style="font-size:13px;font-weight:700;color:var(--navy)"></span>
+                  <button onclick="calNav(1,'month')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;color:var(--text-3)">›</button>
+                  <button onclick="calNav(1,'year')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;color:var(--text-3)">»</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;margin-bottom:6px">
+                  <span style="font-size:10px;font-weight:600;color:var(--text-3)">D</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">S</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">T</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">Q</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">Q</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">S</span><span style="font-size:10px;font-weight:600;color:var(--text-3)">S</span>
+                </div>
+                <div id="cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center"></div>
+                <div style="margin-top:10px;display:flex;gap:8px">
+                  <button onclick="calSelectToday()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);font-family:var(--font)">Hoje</button>
+                  <button onclick="calClear()" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:11px;font-weight:600;cursor:pointer;color:var(--text-3);font-family:var(--font)">Limpar</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="card-body">
@@ -2229,12 +2248,57 @@ function filterTasks(f,btn){
   taskFilter=f;
   if(btn){document.querySelectorAll('#task-filter .df-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
   document.getElementById('task-custom-date').style.display=f==='custom'?'block':'none';
+  if(f!=='custom'){document.getElementById('cal-picker').style.display='none';}
   renderTaskList();
+}
+
+// ══ MINI CALENDÁRIO ══
+let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), calSelected='';
+function toggleCalPicker(){
+  const p=document.getElementById('cal-picker');
+  p.style.display=p.style.display==='none'?'block':'none';
+  renderCal();
+}
+function calNav(dir,unit){
+  if(unit==='month'){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}}
+  else{calYear+=dir;}
+  renderCal();
+}
+function renderCal(){
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('cal-title').textContent=MESES[calMonth]+' '+calYear;
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const todStr=tod();
+  let html='';
+  for(let i=0;i<firstDay;i++)html+='<span></span>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=ds===todStr;
+    const isSel=ds===calSelected;
+    const bg=isSel?'var(--navy)':isToday?'var(--gold)':'transparent';
+    const color=isSel?'#fff':isToday?'var(--navy)':'var(--text)';
+    const fw=isToday||isSel?'700':'400';
+    html+=`<span onclick="calSelect('${ds}')" style="padding:6px 0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${fw};background:${bg};color:${color};transition:all .15s" onmouseover="this.style.background=this.style.background.includes('navy')?'var(--navy)':'var(--bg)'" onmouseout="this.style.background='${bg}'">${d}</span>`;
+  }
+  document.getElementById('cal-days').innerHTML=html;
+}
+function calSelect(ds){
+  calSelected=ds;
+  document.getElementById('cal-picker-btn').textContent=ds.split('-').reverse().join('/');
+  document.getElementById('cal-picker').style.display='none';
+  filterTasks('custom-date',null,ds);
+}
+function calSelectToday(){calSelect(tod());}
+function calClear(){
+  calSelected='';
+  document.getElementById('cal-picker-btn').textContent='Escolher data';
+  document.getElementById('cal-picker').style.display='none';
+  filterTasks('hoje',document.querySelector('#task-filter .df-btn'));
 }
 function renderTaskList(){
   let tasks=S.get('tasks',[]);
-  const customVal=document.getElementById('task-custom-date')?.querySelector('input')?.value||'';
-  tasks=filterByPeriod(tasks,taskFilter,'date',customVal,customVal);
+  tasks=filterByPeriod(tasks,taskFilter,'date',calSelected,calSelected);
   const el=document.getElementById('d-tasks');
   const pending=tasks.filter(t=>!t.done);
   const done=tasks.filter(t=>t.done);
