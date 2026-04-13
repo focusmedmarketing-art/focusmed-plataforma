@@ -522,6 +522,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   .card-header{flex-wrap:wrap;gap:8px;}
 }
 </style>
+<!-- Firebase SDK (CDN compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -1680,11 +1683,86 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <div id="toast" class="toast"></div>
 
 <script>
-// ══ STORAGE ══
+// ══ FIREBASE INIT ══
+firebase.initializeApp({
+  apiKey:"AIzaSyBsRC8dheKzBDLOzwwrLIuyRSHc3hUxWKs",
+  authDomain:"focusmed-plataforma.firebaseapp.com",
+  projectId:"focusmed-plataforma",
+  storageBucket:"focusmed-plataforma.firebasestorage.app",
+  messagingSenderId:"910965129764",
+  appId:"1:910965129764:web:c4c1a02ce58004260d4eb1"
+});
+const db=firebase.firestore();
+const FM_DOC='focusmed-data';
+
+// ══ STORAGE com SYNC Firebase ══
+// Lê do localStorage (instantâneo) e sincroniza com Firestore (nuvem)
+const _syncQueue=new Set();
+let _syncTimer=null;
 const S={
   get:(k,d)=>{try{const v=localStorage.getItem('fm2_'+k);return v?JSON.parse(v):d;}catch{return d;}},
-  set:(k,v)=>{try{localStorage.setItem('fm2_'+k,JSON.stringify(v));}catch{}}
+  set:(k,v)=>{
+    try{localStorage.setItem('fm2_'+k,JSON.stringify(v));}catch{}
+    // Agenda sync para Firestore (debounce 2s para agrupar mudanças)
+    _syncQueue.add(k);
+    if(_syncTimer)clearTimeout(_syncTimer);
+    _syncTimer=setTimeout(()=>_syncToFirestore(),2000);
+  }
 };
+// Envia dados alterados para Firestore
+function _syncToFirestore(){
+  if(!_syncQueue.size)return;
+  const data={};
+  _syncQueue.forEach(k=>{data['fm2_'+k]=localStorage.getItem('fm2_'+k)||''});
+  _syncQueue.clear();
+  db.collection('app').doc(FM_DOC).set(data,{merge:true})
+    .then(()=>console.log('☁️ Sync OK'))
+    .catch(e=>console.warn('Sync err:',e));
+}
+// Ao carregar, puxa dados do Firestore e sobrescreve o local se Firestore tiver dados
+let _firebaseLoaded=false;
+function _loadFromFirestore(){
+  db.collection('app').doc(FM_DOC).get().then(snap=>{
+    if(snap.exists){
+      const data=snap.data();
+      let changed=false;
+      Object.keys(data).forEach(k=>{
+        const localVal=localStorage.getItem(k);
+        // Se Firestore tem dado e local não tem, ou se local é dados default (initData rodou antes)
+        if(data[k]&&data[k]!==''){
+          // Firestore sempre vence (fonte da verdade na nuvem)
+          if(localVal!==data[k]){
+            localStorage.setItem(k,data[k]);
+            changed=true;
+          }
+        }
+      });
+      if(changed){
+        console.log('☁️ Dados carregados do Firebase — recarregando...');
+        _firebaseLoaded=true;
+        // Re-renderizar a página atual
+        if(typeof go==='function')go(curPage||'dashboard');
+      }
+    }
+    _firebaseLoaded=true;
+  }).catch(e=>{console.warn('Firebase load err:',e);_firebaseLoaded=true;});
+  // Listener em tempo real — quando outro dispositivo alterar
+  db.collection('app').doc(FM_DOC).onSnapshot(snap=>{
+    if(!snap.exists||!_firebaseLoaded)return;
+    const data=snap.data();
+    let changed=false;
+    Object.keys(data).forEach(k=>{
+      if(data[k]&&localStorage.getItem(k)!==data[k]){
+        localStorage.setItem(k,data[k]);
+        changed=true;
+      }
+    });
+    if(changed&&typeof go==='function'){
+      console.log('☁️ Sync recebido de outro dispositivo');
+      go(curPage||'dashboard');
+    }
+  });
+}
 const uid=()=>'id'+Date.now()+Math.random().toString(36).substr(2,5);
 const tod=()=>new Date().toISOString().split('T')[0];
 const fmtR=(n)=>'R$ '+Number(n).toLocaleString('pt-BR');
@@ -3520,6 +3598,8 @@ if(last&&last.page&&last.page!=='cliente'){go(last.page);}
 else{renderDash();renderClients();}
 // Inicializar selects
 setTimeout(()=>{renderClients();},50);
+// Carregar dados do Firebase (sobrescreve local se houver dados na nuvem)
+_loadFromFirestore();
 </script>
 </body>
 </html>
