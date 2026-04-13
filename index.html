@@ -1755,6 +1755,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 <div id="toast" class="toast"></div>
 
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:32px 28px 24px;width:360px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:modalIn .2s ease">
+    <div id="confirm-icon" style="font-size:40px;margin-bottom:12px">⚠️</div>
+    <div id="confirm-title" style="font-size:16px;font-weight:700;color:#0b0f1d;margin-bottom:8px">Confirmar</div>
+    <div id="confirm-msg" style="font-size:13.5px;color:#64748b;line-height:1.5;margin-bottom:24px"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="resolveConfirm(false)" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font)">Cancelar</button>
+      <button id="confirm-ok-btn" onclick="resolveConfirm(true)" style="flex:1;padding:12px;border-radius:10px;border:none;background:#ef4444;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font)">Excluir</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══ FIREBASE INIT ══
 firebase.initializeApp({
@@ -2258,7 +2271,7 @@ function renderPendingTasks(){
     <span style="flex:1;font-size:13px;color:var(--text)">${t.text}</span>
     <span class="resp-badge resp-${t.resp}" style="font-size:10px">${t.resp}</span>
     ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
-    <button onclick="if(confirm('Excluir tarefa: ${t.text.replace(/'/g,"\\'")}?')){delTask('${t.id}')}" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Excluir</button>
+    <button onclick="confirmModal('${t.text.replace(/'/g,"\\'")}',{title:'Excluir tarefa?',icon:'🗑️',okText:'Sim, excluir',okColor:'#ef4444'}).then(ok=>{if(ok)delTask('${t.id}')})" style="background:var(--red);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Excluir</button>
   </div>`).join('');
 }
 
@@ -3875,6 +3888,27 @@ document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{
 
 // ══ TOAST ══
 function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.className='toast',3200);}
+
+// ══ CONFIRM MODAL (substitui confirm() nativo) ══
+let _confirmResolve=null;
+function confirmModal(msg,opts={}){
+  return new Promise(resolve=>{
+    _confirmResolve=resolve;
+    document.getElementById('confirm-icon').textContent=opts.icon||'⚠️';
+    document.getElementById('confirm-title').textContent=opts.title||'Confirmar';
+    document.getElementById('confirm-msg').textContent=msg;
+    const okBtn=document.getElementById('confirm-ok-btn');
+    okBtn.textContent=opts.okText||'Excluir';
+    okBtn.style.background=opts.okColor||'#ef4444';
+    const modal=document.getElementById('confirm-modal');
+    modal.style.display='flex';
+  });
+}
+function resolveConfirm(val){
+  document.getElementById('confirm-modal').style.display='none';
+  if(_confirmResolve)_confirmResolve(val);
+  _confirmResolve=null;
+}
 
 // ══ SEARCH ══
 function gsearch(q){if(!q)return;const clients=S.get('clients',[]);const m=clients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));if(m.length===1)go('cliente',m[0].id);}
