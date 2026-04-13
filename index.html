@@ -2233,20 +2233,25 @@ function filterTasks(f,btn){
 }
 function renderTaskList(){
   let tasks=S.get('tasks',[]);
-  // Aplicar filtro de data
   const customVal=document.getElementById('task-custom-date')?.querySelector('input')?.value||'';
   tasks=filterByPeriod(tasks,taskFilter,'date',customVal,customVal);
   const el=document.getElementById('d-tasks');
-  const pending=tasks.filter(t=>!t.done).slice(0,8);
-  const done=tasks.filter(t=>t.done).slice(0,3);
+  const pending=tasks.filter(t=>!t.done);
+  const done=tasks.filter(t=>t.done);
   const all=[...pending,...done];
-  if(!all.length){el.innerHTML='<div class="empty"><div class="empty-icon">✅</div><p>Sem tarefas pendentes!</p></div>';return;}
-  el.innerHTML=all.map(t=>`<div class="task-row">
-    <div class="chk ${t.done?'done':''}" onclick="toggleTask('${t.id}')"></div>
+  if(!all.length){
+    const isToday=taskFilter==='hoje';
+    el.innerHTML=`<div class="empty"><div class="empty-icon">${isToday?'📋':'✅'}</div><p>${isToday?'Nenhuma tarefa para hoje. Adicione uma!':'Nenhuma tarefa neste período.'}</p></div>`;
+    return;
+  }
+  const doneCount=done.length;const totalCount=all.length;
+  let header='';
+  if(totalCount>0){header=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-3)">${pending.length} pendente${pending.length!==1?'s':''} · ${doneCount} concluída${doneCount!==1?'s':''}</span><span style="font-size:11px;font-weight:600;color:${doneCount===totalCount?'var(--green)':'var(--gold)'}">⬤ ${Math.round(doneCount/totalCount*100)}%</span></div>`;}
+  el.innerHTML=header+all.map(t=>`<div class="task-row" style="opacity:${t.done?'0.6':'1'}">
+    <div class="chk ${t.done?'done':''}" onclick="toggleTask('${t.id}')" title="${t.done?'Desmarcar':'Marcar como feita'}"></div>
     <span style="flex:1;font-size:13px;${t.done?'text-decoration:line-through;color:var(--text-3)':'color:var(--text)'}">${t.text}</span>
     <span class="resp-badge resp-${t.resp}">${t.resp}</span>
     ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
-    <button onclick="delTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:18px;line-height:1;padding:0 4px">×</button>
   </div>`).join('');
 }
 function addTaskFromModal(){
