@@ -158,6 +158,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .cal-day-hdr{text-align:center;font-size:10px;font-weight:700;color:var(--text-3);padding:5px 0;letter-spacing:.5px;}
 .cal-day{min-height:80px;border:1.5px solid var(--border);border-radius:8px;padding:5px;cursor:pointer;transition:all .12s;background:var(--white);}
+.cal-day.drag-over{background:#fef3c7;border-color:var(--gold);border-style:dashed;transform:scale(1.02);}
+.cal-post{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}
+.cal-post:active{cursor:grabbing;}
 .cal-day:hover{border-color:var(--gold);background:var(--gold-pale);}
 .cal-day.today{border-color:var(--navy);background:#f0f4ff;}
 .cal-day.other{background:var(--bg);opacity:.6;}
@@ -2873,7 +2876,8 @@ function jorDropCard(cardId,targetCol,beforeCardId,insertBefore){
 let calPeriodVal='all';
 function calPeriod(p,btn){calPeriodVal=p;document.querySelectorAll('#cal-period-filter .df-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('cal-custom-range').style.display=p==='custom'?'flex':'none';renderCalGrid();renderWeekList();}
 function calPostsFiltered(){
-  let posts=S.get('posts',[]).filter(p=>p.cid===curCliId);
+  if(!curCliId)return[];
+  let posts=S.get('posts',[]).filter(p=>p.cid&&p.cid===curCliId);
   if(calPeriodVal==='custom'){const de=document.getElementById('cal-de')?.value;const ate=document.getElementById('cal-ate')?.value;if(de)posts=posts.filter(p=>p.date>=de);if(ate)posts=posts.filter(p=>p.date<=ate);}
   else if(calPeriodVal!=='all'){const n=+calPeriodVal;const cut=new Date();cut.setDate(cut.getDate()-n);const cutS=cut.toISOString().split('T')[0];posts=posts.filter(p=>p.date>=cutS);}
   return posts;
@@ -2897,12 +2901,69 @@ function renderCalGrid(){
     const dp=posts.filter(p=>p.date===ds);
     const isT=ds===todStr;
     const fmtC={reel:'cp-r',carrossel:'cp-c',estatico:'cp-e',stories:'cp-s'};
-    html+=`<div class="cal-day ${isT?'today':''}" onclick="clickCalDay('${ds}')">
+    html+=`<div class="cal-day ${isT?'today':''}" data-date="${ds}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" onclick="clickCalDay('${ds}')">
       <div class="dn">${d}</div>
-      ${dp.map(p=>`<div class="cal-post ${fmtC[p.fmt]||''}" onclick="event.stopPropagation();openPostPopup('${p.id}')">${p.tema.length>16?p.tema.substr(0,16)+'…':p.tema}</div>`).join('')}
+      ${dp.map(p=>`<div class="cal-post ${fmtC[p.fmt]||''}" draggable="true" data-post-id="${p.id}" ondragstart="calDragStart(event,'${p.id}')" ondragend="calDragEnd(event)" ontouchstart="calTouchStart(event,'${p.id}')" ontouchmove="calTouchMove(event)" ontouchend="calTouchEnd(event)" onclick="event.stopPropagation();openPostPopup('${p.id}')" title="Arraste para mover">${p.tema.length>16?p.tema.substr(0,16)+'…':p.tema}</div>`).join('')}
     </div>`;
   }
   document.getElementById('cal-body').innerHTML=html;
+}
+
+// ══ DRAG & DROP no calendário (desktop + mobile) ══
+let _dragPostId=null, _dragTouchEl=null, _dragTouchOffset={x:0,y:0};
+function calDragStart(e,id){_dragPostId=id;e.dataTransfer.effectAllowed='move';e.target.style.opacity='0.4';}
+function calDragEnd(e){e.target.style.opacity='';_dragPostId=null;document.querySelectorAll('.cal-day').forEach(d=>d.classList.remove('drag-over'));}
+function calDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.classList.add('drag-over');}
+function calDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function calDrop(e,targetDate){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(!_dragPostId)return;
+  const posts=S.get('posts',[]);
+  const p=posts.find(x=>x.id===_dragPostId);
+  if(p&&p.cid===curCliId&&p.date!==targetDate){p.date=targetDate;S.set('posts',posts);renderCalGrid();renderWeekList();toast('Post movido para '+targetDate.split('-').reverse().join('/'),'ok');}
+}
+// Mobile: touch drag-drop
+function calTouchStart(e,id){
+  _dragPostId=id;
+  const el=e.target;
+  const rect=el.getBoundingClientRect();
+  const t=e.touches[0];
+  _dragTouchOffset={x:t.clientX-rect.left,y:t.clientY-rect.top};
+  const clone=el.cloneNode(true);
+  clone.id='_cal-drag-ghost';
+  clone.style.cssText='position:fixed;pointer-events:none;z-index:99999;opacity:0.9;width:'+rect.width+'px;left:'+rect.left+'px;top:'+rect.top+'px;box-shadow:0 8px 20px rgba(0,0,0,.3);transform:scale(1.05)';
+  document.body.appendChild(clone);
+  _dragTouchEl=clone;
+  el.style.opacity='0.3';
+}
+function calTouchMove(e){
+  if(!_dragTouchEl)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  _dragTouchEl.style.left=(t.clientX-_dragTouchOffset.x)+'px';
+  _dragTouchEl.style.top=(t.clientY-_dragTouchOffset.y)+'px';
+  document.querySelectorAll('.cal-day').forEach(d=>d.classList.remove('drag-over'));
+  _dragTouchEl.style.display='none';
+  const below=document.elementFromPoint(t.clientX,t.clientY);
+  _dragTouchEl.style.display='';
+  const day=below?.closest('.cal-day');
+  if(day&&day.dataset.date)day.classList.add('drag-over');
+}
+function calTouchEnd(e){
+  if(!_dragTouchEl)return;
+  const t=e.changedTouches[0];
+  _dragTouchEl.style.display='none';
+  const below=document.elementFromPoint(t.clientX,t.clientY);
+  const day=below?.closest('.cal-day');
+  _dragTouchEl.remove();_dragTouchEl=null;
+  document.querySelectorAll('.cal-post').forEach(p=>p.style.opacity='');
+  document.querySelectorAll('.cal-day').forEach(d=>d.classList.remove('drag-over'));
+  if(day&&day.dataset.date&&_dragPostId){
+    const posts=S.get('posts',[]);
+    const p=posts.find(x=>x.id===_dragPostId);
+    if(p&&p.cid===curCliId&&p.date!==day.dataset.date){p.date=day.dataset.date;S.set('posts',posts);renderCalGrid();renderWeekList();toast('Post movido para '+day.dataset.date.split('-').reverse().join('/'),'ok');}
+  }
+  _dragPostId=null;
 }
 function renderWeekList(){
   const posts=calPostsFiltered().sort((a,b)=>a.date.localeCompare(b.date));
@@ -2924,6 +2985,7 @@ function setCalView(v){calView=v;document.getElementById('cv-month').style.displ
 function clickCalDay(ds){document.getElementById('np-date').value=ds;openModal('m-new-post');}
 function savePost(){
   const tema=document.getElementById('np-tema').value.trim();if(!tema)return;
+  if(!curCliId){toast('Erro: selecione um cliente antes','err');return;}
   const posts=S.get('posts',[]);
   posts.push({id:uid(),cid:curCliId,tema,fmt:document.getElementById('np-fmt').value,date:document.getElementById('np-date').value,time:document.getElementById('np-time').value,resp:document.getElementById('np-resp').value,status:document.getElementById('np-status').value,legenda:document.getElementById('np-leg').value,drive:document.getElementById('np-drive').value});
   S.set('posts',posts);closeModal('m-new-post');renderCalGrid();renderWeekList();toast('Post adicionado!','ok');
