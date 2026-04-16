@@ -591,6 +591,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="nav-sec">Principal</div>
     <div class="nav-item active" onclick="go('dashboard')"><span class="ni">⌂</span> Dashboard</div>
     <div class="nav-item" onclick="go('clientes')"><span class="ni">⊕</span> Clientes <span class="nb" id="nb-c">4</span></div>
+    <div class="nav-item" onclick="go('agenda')"><span class="ni">📅</span> Focus Agenda</div>
 
     <div class="nav-sec">Equipe</div>
     <div class="nav-item" onclick="go('editor')"><span class="ni">▷</span> Edição</div>
@@ -673,7 +674,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="card-body">
           <div id="d-tasks"></div>
           <div style="margin-top:12px">
-            <button class="btn btn-navy" style="width:100%" onclick="openModal('m-new-task')">+ Adicionar Tarefa</button>
+            <button class="btn btn-navy" style="width:100%" onclick="openNewTaskModal()">+ Adicionar Tarefa</button>
           </div>
         </div>
       </div>
@@ -1407,6 +1408,77 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   <div class="kanban" id="kanban-board"></div>
 </div>
 
+<!-- ══ FOCUS AGENDA ══ -->
+<div id="p-agenda" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div>
+      <div style="font-size:13px;color:var(--text-3)">Agenda completa sincronizada com o Google Calendar</div>
+      <div id="agenda-gcal-status" style="font-size:11px;color:var(--text-3);margin-top:4px">🔌 Não conectado ao Google</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="connectGoogleCalendar()">🔗 Conectar Google</button>
+      <button class="btn btn-navy" onclick="syncFromGoogleCalendar()">⟳ Sincronizar</button>
+      <button class="btn btn-gold" onclick="openAgendaEventModal()">+ Novo Evento</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="align-items:center">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn btn-sm btn-outline" onclick="agendaPrev()">‹</button>
+        <span style="font-size:16px;font-weight:700;color:var(--navy)" id="agenda-label"></span>
+        <button class="btn btn-sm btn-outline" onclick="agendaNext()">›</button>
+        <button class="btn btn-sm btn-outline" onclick="agendaToday()">Hoje</button>
+      </div>
+      <div class="date-filter">
+        <button class="df-btn active" onclick="setAgendaView('month',this)">Mês</button>
+        <button class="df-btn" onclick="setAgendaView('week',this)">Semana</button>
+        <button class="df-btn" onclick="setAgendaView('day',this)">Dia</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="agenda-cal-hdrs" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px"></div>
+      <div id="agenda-cal-body" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
+      <div id="agenda-day-view" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <div class="card-header"><div class="card-title">📋 Próximos Eventos</div></div>
+    <div class="card-body" id="agenda-upcoming"></div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO EVENTO DA AGENDA -->
+<div class="overlay" id="m-agenda-event">
+  <div class="modal" style="width:460px">
+    <div class="modal-h"><span class="modal-title" id="m-agenda-event-title">+ Novo Evento</span><button class="modal-x" onclick="closeModal('m-agenda-event')">×</button></div>
+    <div class="modal-b">
+      <div class="fg"><label class="lbl">Título do evento *</label><input id="ae-title" class="inp" placeholder="Ex: Reunião com Dr. Silva"></div>
+      <div class="fr2">
+        <div class="fg"><label class="lbl">Data *</label><input id="ae-date" class="inp" type="date"></div>
+        <div class="fg"><label class="lbl">Hora</label><input id="ae-time" class="inp" type="time"></div>
+      </div>
+      <div class="fg"><label class="lbl">Duração (min)</label><input id="ae-dur" class="inp" type="number" value="60"></div>
+      <div class="fg"><label class="lbl">Descrição</label><textarea id="ae-desc" class="inp" rows="2"></textarea></div>
+      <div class="fg"><label class="lbl">Cor</label><select id="ae-color" class="inp">
+        <option value="#0B1F3A">Azul (padrão)</option>
+        <option value="#D4B054">Dourado</option>
+        <option value="#10b981">Verde</option>
+        <option value="#ef4444">Vermelho</option>
+        <option value="#8B5CF6">Roxo</option>
+        <option value="#f59e0b">Laranja</option>
+      </select></div>
+      <div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="ae-gcal" checked> Enviar também para Google Calendar</label></div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-outline" onclick="closeModal('m-agenda-event')">Cancelar</button>
+      <button class="btn btn-red" id="ae-delete-btn" onclick="deleteAgendaEvent()" style="display:none">Excluir</button>
+      <button class="btn btn-gold" onclick="saveAgendaEvent()">Salvar</button>
+    </div>
+  </div>
+</div>
+
   </div><!-- end content -->
 </div><!-- end main -->
 
@@ -1603,6 +1675,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="modal-h"><span class="modal-title">+ Adicionar Tarefa</span><button class="modal-x" onclick="closeModal('m-new-task')">×</button></div>
     <div class="modal-b">
       <div class="fg"><label class="lbl">Descrição da tarefa *</label><input id="nt-desc" class="inp" placeholder="Ex: Definir temas de abril — MoveTwoCure"></div>
+      <div class="fg"><label class="lbl">Cliente (opcional)</label><select id="nt-client" class="inp"><option value="">— Sem cliente (tarefa geral) —</option></select></div>
       <div class="fr2">
         <div class="fg"><label class="lbl">Data para realizar</label><input id="nt-date" class="inp" type="date"></div>
         <div class="fg"><label class="lbl">Responsável</label><select id="nt-resp-m" class="inp"><option value="JV">João Victor</option><option value="Bia">Bia</option><option value="Leo">Leo</option></select></div>
@@ -1812,40 +1885,39 @@ const ADMINS={
 const EMAILS_BY_KEY={JV:'victorgalvaao13@gmail.com',Bia:'beatrizsfireman@gmail.com'};
 let currentUser=null;
 
-// ══ EmailJS ══
-// Inicializar EmailJS (chave pública gratuita — o usuário pode trocar pela sua)
-// Para configurar: crie conta em emailjs.com, pegue service_id, template_id e public_key
-const EMAILJS_PUBLIC_KEY=''; // Preencher com sua chave
-const EMAILJS_SERVICE=''; // Preencher com seu service_id
-const EMAILJS_TEMPLATE=''; // Preencher com seu template_id
-
-function sendTaskNotification(taskText,fromUser,toResp){
-  if(!EMAILJS_PUBLIC_KEY||!EMAILJS_SERVICE)return; // EmailJS não configurado ainda
+// ══ E-MAIL via Formsubmit.co (gratuito, sem cadastro) ══
+// Formsubmit envia emails através de uma simples chamada HTTP (funciona sem backend).
+// Primeira vez que um email é usado, o destinatário recebe um email de ativação.
+async function sendTaskNotification(taskText,fromUser,toResp){
   const fromName=ADMINS[Object.keys(ADMINS).find(e=>ADMINS[e].key===fromUser)]?.name||fromUser;
   const toKey=toResp;
-  // Se atribuiu para si mesmo, não enviar
-  if(fromUser===toKey)return;
+  if(fromUser===toKey)return; // Não notificar a si mesmo
   const recipients=[];
   if(toKey==='Leo'){
-    // Notificar ambos admins
     recipients.push({email:'victorgalvaao13@gmail.com',name:'João Victor'});
     recipients.push({email:'beatrizsfireman@gmail.com',name:'Bia'});
   }else{
     const toEmail=EMAILS_BY_KEY[toKey];
     if(toEmail){const admin=ADMINS[toEmail];recipients.push({email:toEmail,name:admin?.name||toKey});}
   }
-  recipients.forEach(r=>{
-    const body=toKey==='Leo'
-      ?`Olá ${r.name}, ${fromName} atribuiu uma nova tarefa para o editor Leo na plataforma FocusMed: "${taskText}". Acesse a plataforma para ver os detalhes.`
-      :`Olá ${r.name}, ${fromName} atribuiu uma nova tarefa para você na plataforma FocusMed: "${taskText}". Acesse a plataforma para ver os detalhes.`;
-    emailjs.send(EMAILJS_SERVICE,EMAILJS_TEMPLATE,{
-      to_email:r.email,
-      to_name:r.name,
-      from_name:fromName,
-      subject:'Nova tarefa atribuída'+(toKey==='Leo'?' ao editor':'')+'',
-      message:body,
-    },EMAILJS_PUBLIC_KEY).then(()=>console.log('📧 E-mail enviado para '+r.email)).catch(e=>console.warn('Email err:',e));
-  });
+  for(const r of recipients){
+    const subject=toKey==='Leo'?'FocusMed — Nova tarefa atribuída ao editor':'FocusMed — Nova tarefa atribuída';
+    const body=`Olá ${r.name},\n\n${fromName} atribuiu uma nova tarefa para ${toKey==='Leo'?'o editor Leo':'você'} na plataforma FocusMed:\n\n"${taskText}"\n\nAcesse a plataforma: https://focusmedmarketing-art.github.io/focusmed-plataforma/\n\n---\nEste é um e-mail automático enviado pela plataforma FocusMed.`;
+    try{
+      await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(r.email)}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Accept:'application/json'},
+        body:JSON.stringify({
+          _subject:subject,
+          _template:'box',
+          name:fromName,
+          email:'noreply@focusmed.com',
+          message:body
+        })
+      });
+      console.log('📧 E-mail enviado para '+r.email);
+    }catch(e){console.warn('Email err:',e);}
+  }
 }
 
 // ══ LOGIN/LOGOUT ══
@@ -2188,8 +2260,8 @@ const QUOTES=[
 
 // ══ NAV ══
 let curPage='dashboard',curCliId=null,curDept=null;
-const TITLES={dashboard:'Dashboard',clientes:'Clientes',cliente:'',editor:'Edição de Vídeo',social:'Social Media',design:'Design',copy:'Copywriter',caixa:'Fluxo de Caixa',relatorios:'Relatórios',arquivos:'Arquivos',missao:'Missão & Valores',prospecao:'Prospecção'};
-const ACTIONS={dashboard:'+ Tarefa',clientes:'+ Novo Cliente',cliente:'+ Post',editor:'+ Tarefa',social:'+ Tarefa',design:'+ Tarefa',copy:'+ Tarefa',caixa:'+ Receita',relatorios:'',arquivos:'+ Arquivo',missao:'',prospecao:'+ Lead'};
+const TITLES={dashboard:'Dashboard',clientes:'Clientes',cliente:'',agenda:'Focus Agenda',editor:'Edição de Vídeo',social:'Social Media',design:'Design',copy:'Copywriter',caixa:'Fluxo de Caixa',relatorios:'Relatórios',arquivos:'Arquivos',missao:'Missão & Valores',prospecao:'Prospecção'};
+const ACTIONS={dashboard:'+ Tarefa',clientes:'+ Novo Cliente',cliente:'+ Post',agenda:'+ Evento',editor:'+ Tarefa',social:'+ Tarefa',design:'+ Tarefa',copy:'+ Tarefa',caixa:'+ Receita',relatorios:'',arquivos:'+ Arquivo',missao:'',prospecao:'+ Lead'};
 
 function go(page,cid=null){
   curPage=page; if(cid)curCliId=cid;
@@ -2215,12 +2287,13 @@ function go(page,cid=null){
   else if(page==='arquivos')renderFiles();
   else if(page==='missao')renderMissao();
   else if(page==='prospecao')renderProspecting();
+  else if(page==='agenda')renderAgenda();
   toggleSb(false);
   window.scrollTo(0,0);
   document.getElementById('content').scrollTop=0;
 }
 function tbAction(){
-  const acts={dashboard:()=>openModal('m-new-task'),clientes:()=>openModal('m-new-client'),cliente:()=>openModal('m-new-post'),editor:()=>openTeamTaskModal('editor'),social:()=>openTeamTaskModal('social'),design:()=>openTeamTaskModal('design'),copy:()=>openTeamTaskModal('copy'),caixa:()=>openModal('m-new-rec'),arquivos:()=>document.getElementById('fi-global').click(),prospecao:()=>openModal('m-new-lead')};
+  const acts={dashboard:()=>openNewTaskModal(),clientes:()=>openModal('m-new-client'),cliente:()=>openModal('m-new-post'),agenda:()=>openAgendaEventModal(),editor:()=>openTeamTaskModal('editor'),social:()=>openTeamTaskModal('social'),design:()=>openTeamTaskModal('design'),copy:()=>openTeamTaskModal('copy'),caixa:()=>openModal('m-new-rec'),arquivos:()=>document.getElementById('fi-global').click(),prospecao:()=>openModal('m-new-lead')};
   if(acts[curPage])acts[curPage]();
 }
 function toggleSb(open){
@@ -2321,20 +2394,30 @@ function renderTaskList(){
     ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
   </div>`).join('');
 }
+function openNewTaskModal(){
+  // Popular select de clientes
+  const sel=document.getElementById('nt-client');
+  const clients=S.get('clients',[]);
+  sel.innerHTML='<option value="">— Sem cliente (tarefa geral) —</option>'+clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  openNewTaskModal();
+}
 function addTaskFromModal(){
   const t=document.getElementById('nt-desc').value.trim();if(!t){toast('Descrição obrigatória','err');return;}
   const resp=document.getElementById('nt-resp-m').value;
+  const cid=document.getElementById('nt-client').value||null;
   const tasks=S.get('tasks',[]);
-  tasks.push({id:uid(),text:t,resp,done:false,date:document.getElementById('nt-date').value||tod()});
+  tasks.push({id:uid(),text:t,resp,done:false,date:document.getElementById('nt-date').value||tod(),cid});
   S.set('tasks',tasks);
   document.getElementById('nt-desc').value='';document.getElementById('nt-date').value='';
-  closeModal('m-new-task');renderTaskList();renderChart();renderPendingTasks();toast('Tarefa adicionada','ok');
-  // Notificar por e-mail
+  document.getElementById('nt-client').value='';
+  closeModal('m-new-task');renderTaskList();renderChart();renderPendingTasks();
+  if(typeof renderCliTasks==='function'&&curCliId)renderCliTasks();
+  toast('Tarefa adicionada'+(cid?' ao cliente':''),'ok');
   sendTaskNotification(t,currentUser?.key||'JV',resp);
 }
 function fmtDateBR(d){if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}/${m}`;}
-function toggleTask(id){const tasks=S.get('tasks',[]);const t=tasks.find(x=>x.id===id);if(t)t.done=!t.done;S.set('tasks',tasks);renderTaskList();renderChart();renderPendingTasks();}
-function delTask(id){S.set('tasks',S.get('tasks',[]).filter(x=>x.id!==id));renderTaskList();renderChart();renderPendingTasks();}
+function toggleTask(id){const tasks=S.get('tasks',[]);const t=tasks.find(x=>x.id===id);if(t)t.done=!t.done;S.set('tasks',tasks);renderTaskList();renderChart();renderPendingTasks();if(typeof renderCliTasks==='function'&&curCliId&&document.getElementById('cli-tasks-list'))renderCliTasks();}
+function delTask(id){S.set('tasks',S.get('tasks',[]).filter(x=>x.id!==id));renderTaskList();renderChart();renderPendingTasks();if(typeof renderCliTasks==='function'&&curCliId&&document.getElementById('cli-tasks-list'))renderCliTasks();}
 function renderPendingTasks(){
   const tasks=S.get('tasks',[]).filter(t=>!t.done);
   const el=document.getElementById('d-pending-tasks');
@@ -3013,15 +3096,40 @@ function saveCont(){
 }
 function delCont(id){const all=S.get('conteudos',{});all[curCliId]=(all[curCliId]||[]).filter(x=>x.id!==id);S.set('conteudos',all);renderContList();}
 function renderCliTasks(){
-  const all=S.get('cli_tasks',{});const tasks=all[curCliId]||[];
+  const all=S.get('cli_tasks',{});const cliTasks=(all[curCliId]||[]).map(t=>({...t,_src:'cli'}));
+  const dashTasks=S.get('tasks',[]).filter(t=>t.cid===curCliId).map(t=>({...t,_src:'dash',due:t.date}));
+  const tasks=[...cliTasks,...dashTasks];
   const el=document.getElementById('cli-tasks-list');
   el.innerHTML=tasks.map(t=>`<div class="task-row">
-    <div class="chk ${t.done?'done':''}" onclick="togCliTask('${t.id}')"></div>
-    <span style="flex:1;font-size:13px;${t.done?'text-decoration:line-through;color:var(--text-3)':'color:var(--text)'}">${t.text}</span>
+    <div class="chk ${t.done?'done':''}" onclick="togCliTaskUnified('${t.id}','${t._src}')"></div>
+    <span style="flex:1;font-size:13px;${t.done?'text-decoration:line-through;color:var(--text-3)':'color:var(--text)'}">${t.text}${t._src==='dash'?' <span style="font-size:10px;color:var(--gold);font-weight:600">• Dashboard</span>':''}</span>
     <span class="tag ${t.resp==='JV'?'tg-navy':t.resp==='Bia'?'tg-gold':'tg-purple'}" style="font-size:10.5px">${t.resp}</span>
     ${t.due?`<span style="font-size:11px;color:var(--text-3)">${t.due}</span>`:''}
-    <button onclick="delCliTask('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px">×</button>
+    <button onclick="delCliTaskUnified('${t.id}','${t._src}')" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px">×</button>
   </div>`).join('')||'<div class="empty"><div class="empty-icon">✅</div><p>Sem tarefas.</p></div>';
+}
+function togCliTaskUnified(id,src){
+  if(src==='dash'){
+    const tasks=S.get('tasks',[]);const t=tasks.find(x=>x.id===id);
+    if(t)t.done=!t.done;S.set('tasks',tasks);
+    if(typeof renderTaskList==='function')renderTaskList();
+    if(typeof renderChart==='function')renderChart();
+    if(typeof renderPendingTasks==='function')renderPendingTasks();
+  }else{
+    togCliTask(id);return;
+  }
+  renderCliTasks();
+}
+function delCliTaskUnified(id,src){
+  if(src==='dash'){
+    S.set('tasks',S.get('tasks',[]).filter(x=>x.id!==id));
+    if(typeof renderTaskList==='function')renderTaskList();
+    if(typeof renderChart==='function')renderChart();
+    if(typeof renderPendingTasks==='function')renderPendingTasks();
+  }else{
+    delCliTask(id);return;
+  }
+  renderCliTasks();
 }
 function addCliTask(){
   const t=document.getElementById('ct-inp').value.trim();if(!t)return;
@@ -4055,6 +4163,268 @@ function resolveConfirm(val){
 
 // ══ SEARCH ══
 function gsearch(q){if(!q)return;const clients=S.get('clients',[]);const m=clients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));if(m.length===1)go('cliente',m[0].id);}
+
+// ══════════════════════════════════════════════════════
+// ══ FOCUS AGENDA — Calendário completo + Google Calendar ══
+// ══════════════════════════════════════════════════════
+let agendaDate=new Date(), agendaView='month', agendaEditId=null;
+let gcalToken=S.get('gcal_token',null);
+const GCAL_CLIENT_ID='910965129764-'; // Firebase project número — precisa do Client ID OAuth real
+const GCAL_SCOPE='https://www.googleapis.com/auth/calendar';
+
+function renderAgenda(){
+  if(!document.getElementById('agenda-cal-body'))return;
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  document.getElementById('agenda-label').textContent=MESES[agendaDate.getMonth()]+' '+agendaDate.getFullYear();
+  const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  document.getElementById('agenda-cal-hdrs').innerHTML=days.map(d=>`<div style="text-align:center;font-size:11px;font-weight:700;color:var(--text-3);padding:6px 0">${d}</div>`).join('');
+  if(agendaView==='month')renderAgendaMonth();
+  else if(agendaView==='week')renderAgendaWeek();
+  else renderAgendaDay();
+  renderAgendaUpcoming();
+  document.getElementById('agenda-gcal-status').innerHTML=gcalToken?'✅ Conectado ao Google Calendar':'🔌 Não conectado ao Google';
+}
+function renderAgendaMonth(){
+  document.getElementById('agenda-day-view').style.display='none';
+  document.getElementById('agenda-cal-body').style.display='grid';
+  const events=S.get('agenda_events',[]);
+  const y=agendaDate.getFullYear(),m=agendaDate.getMonth();
+  const first=new Date(y,m,1).getDay(),last=new Date(y,m+1,0).getDate();
+  const todStr=tod();
+  let html=Array(first).fill(null).map(()=>`<div style="min-height:100px;border:1.5px solid var(--border);border-radius:8px;padding:5px;background:var(--bg);opacity:.4"></div>`).join('');
+  for(let d=1;d<=last;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const de=events.filter(e=>e.date===ds);
+    const isT=ds===todStr;
+    html+=`<div style="min-height:100px;border:1.5px solid ${isT?'var(--gold)':'var(--border)'};border-radius:8px;padding:5px;cursor:pointer;background:var(--white);transition:all .12s" data-date="${ds}" onclick="clickAgendaDay('${ds}')" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--white)'">
+      <div style="font-size:12px;font-weight:${isT?'800':'600'};color:${isT?'var(--gold)':'var(--text)'};margin-bottom:3px">${d}</div>
+      ${de.slice(0,3).map(e=>`<div onclick="event.stopPropagation();editAgendaEvent('${e.id}')" style="background:${e.color||'#0B1F3A'};color:#fff;font-size:10px;padding:2px 5px;border-radius:4px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer">${e.time?e.time+' ':''}${e.title}</div>`).join('')}
+      ${de.length>3?`<div style="font-size:10px;color:var(--text-3);text-align:center">+${de.length-3} mais</div>`:''}
+    </div>`;
+  }
+  document.getElementById('agenda-cal-body').innerHTML=html;
+}
+function renderAgendaWeek(){
+  document.getElementById('agenda-day-view').style.display='none';
+  document.getElementById('agenda-cal-body').style.display='grid';
+  const events=S.get('agenda_events',[]);
+  const start=new Date(agendaDate);start.setDate(start.getDate()-start.getDay());
+  const todStr=tod();
+  let html='';
+  for(let i=0;i<7;i++){
+    const d=new Date(start);d.setDate(d.getDate()+i);
+    const ds=d.toISOString().split('T')[0];
+    const de=events.filter(e=>e.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const isT=ds===todStr;
+    html+=`<div style="min-height:300px;border:1.5px solid ${isT?'var(--gold)':'var(--border)'};border-radius:8px;padding:8px;background:var(--white)" data-date="${ds}" onclick="clickAgendaDay('${ds}')">
+      <div style="font-size:13px;font-weight:${isT?'800':'700'};color:${isT?'var(--gold)':'var(--navy)'};margin-bottom:8px;text-align:center;padding-bottom:6px;border-bottom:1px solid var(--border)">${d.getDate()}</div>
+      ${de.map(e=>`<div onclick="event.stopPropagation();editAgendaEvent('${e.id}')" style="background:${e.color||'#0B1F3A'};color:#fff;font-size:11px;padding:4px 6px;border-radius:5px;margin-bottom:4px;cursor:pointer">${e.time?'<b>'+e.time+'</b> ':''}${e.title}</div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('agenda-cal-body').innerHTML=html;
+}
+function renderAgendaDay(){
+  document.getElementById('agenda-cal-body').style.display='none';
+  const dv=document.getElementById('agenda-day-view');
+  dv.style.display='block';
+  const ds=agendaDate.toISOString().split('T')[0];
+  const events=S.get('agenda_events',[]).filter(e=>e.date===ds).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  let html=`<div style="padding:20px">
+    <div style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px">${agendaDate.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>`;
+  if(!events.length)html+=`<div class="empty" style="padding:40px"><div class="empty-icon">📅</div><p>Sem eventos. Clique em "+ Novo Evento".</p></div>`;
+  else{
+    // Grid de horários 6h-23h
+    for(let h=6;h<=23;h++){
+      const hs=String(h).padStart(2,'0')+':00';
+      const he=events.filter(e=>(e.time||'').startsWith(String(h).padStart(2,'0')));
+      html+=`<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><div style="width:60px;font-size:12px;color:var(--text-3);font-weight:600">${hs}</div><div style="flex:1">${he.map(e=>`<div onclick="editAgendaEvent('${e.id}')" style="background:${e.color||'#0B1F3A'};color:#fff;padding:8px 12px;border-radius:6px;margin-bottom:4px;cursor:pointer"><b>${e.time}</b> — ${e.title}${e.desc?`<div style="font-size:11px;opacity:.85;margin-top:2px">${e.desc}</div>`:''}</div>`).join('')||''}</div></div>`;
+    }
+  }
+  html+='</div>';
+  dv.innerHTML=html;
+}
+function renderAgendaUpcoming(){
+  const el=document.getElementById('agenda-upcoming');
+  const events=S.get('agenda_events',[]).filter(e=>e.date>=tod()).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).slice(0,8);
+  if(!events.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-3)">Sem eventos futuros.</div>';return;}
+  el.innerHTML=events.map(e=>`<div style="display:flex;gap:12px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer" onclick="editAgendaEvent('${e.id}')">
+    <div style="min-width:60px;text-align:center;background:${e.color||'#0B1F3A'};color:#fff;padding:6px;border-radius:6px">
+      <div style="font-size:16px;font-weight:800">${e.date.split('-')[2]}</div>
+      <div style="font-size:10px">${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(e.date.split('-')[1])-1]}</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:600;color:var(--navy)">${e.title}</div>
+      <div style="font-size:11px;color:var(--text-3)">${e.time||'Dia todo'}${e.desc?' · '+e.desc.substring(0,60):''}</div>
+    </div>
+    ${e.gcalId?'<span style="font-size:10px;color:var(--green);font-weight:600">✓ Google</span>':''}
+  </div>`).join('');
+}
+function agendaPrev(){
+  if(agendaView==='month')agendaDate=new Date(agendaDate.getFullYear(),agendaDate.getMonth()-1,1);
+  else if(agendaView==='week')agendaDate=new Date(agendaDate.getTime()-7*86400000);
+  else agendaDate=new Date(agendaDate.getTime()-86400000);
+  renderAgenda();
+}
+function agendaNext(){
+  if(agendaView==='month')agendaDate=new Date(agendaDate.getFullYear(),agendaDate.getMonth()+1,1);
+  else if(agendaView==='week')agendaDate=new Date(agendaDate.getTime()+7*86400000);
+  else agendaDate=new Date(agendaDate.getTime()+86400000);
+  renderAgenda();
+}
+function agendaToday(){agendaDate=new Date();renderAgenda();}
+function setAgendaView(v,btn){
+  agendaView=v;
+  document.querySelectorAll('#p-agenda .date-filter .df-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderAgenda();
+}
+function clickAgendaDay(ds){
+  agendaEditId=null;
+  document.getElementById('m-agenda-event-title').textContent='+ Novo Evento';
+  document.getElementById('ae-delete-btn').style.display='none';
+  document.getElementById('ae-title').value='';
+  document.getElementById('ae-date').value=ds;
+  document.getElementById('ae-time').value='';
+  document.getElementById('ae-dur').value='60';
+  document.getElementById('ae-desc').value='';
+  document.getElementById('ae-color').value='#0B1F3A';
+  document.getElementById('ae-gcal').checked=true;
+  openModal('m-agenda-event');
+}
+function openAgendaEventModal(){clickAgendaDay(tod());}
+function editAgendaEvent(id){
+  const ev=S.get('agenda_events',[]).find(e=>e.id===id);
+  if(!ev)return;
+  agendaEditId=id;
+  document.getElementById('m-agenda-event-title').textContent='Editar Evento';
+  document.getElementById('ae-delete-btn').style.display='';
+  document.getElementById('ae-title').value=ev.title;
+  document.getElementById('ae-date').value=ev.date;
+  document.getElementById('ae-time').value=ev.time||'';
+  document.getElementById('ae-dur').value=ev.dur||60;
+  document.getElementById('ae-desc').value=ev.desc||'';
+  document.getElementById('ae-color').value=ev.color||'#0B1F3A';
+  document.getElementById('ae-gcal').checked=!!ev.gcalId||true;
+  openModal('m-agenda-event');
+}
+function saveAgendaEvent(){
+  const title=document.getElementById('ae-title').value.trim();
+  const date=document.getElementById('ae-date').value;
+  if(!title||!date){toast('Preencha título e data','err');return;}
+  const data={
+    title,date,
+    time:document.getElementById('ae-time').value,
+    dur:+document.getElementById('ae-dur').value||60,
+    desc:document.getElementById('ae-desc').value,
+    color:document.getElementById('ae-color').value,
+  };
+  const sendGcal=document.getElementById('ae-gcal').checked;
+  const events=S.get('agenda_events',[]);
+  if(agendaEditId){
+    const i=events.findIndex(e=>e.id===agendaEditId);
+    if(i>=0){events[i]={...events[i],...data};}
+  }else{
+    events.push({id:uid(),...data});
+  }
+  S.set('agenda_events',events);
+  closeModal('m-agenda-event');
+  renderAgenda();
+  toast('Evento salvo','ok');
+  if(sendGcal&&gcalToken)pushEventToGoogle(agendaEditId||events[events.length-1].id);
+  else if(sendGcal&&!gcalToken)toast('Conecte ao Google Calendar para sincronizar','err');
+}
+function deleteAgendaEvent(){
+  if(!agendaEditId)return;
+  confirmModal('Deseja excluir este evento?',{title:'Excluir evento?',icon:'🗑️'}).then(ok=>{
+    if(!ok)return;
+    const events=S.get('agenda_events',[]);
+    const ev=events.find(e=>e.id===agendaEditId);
+    if(ev&&ev.gcalId&&gcalToken)deleteEventFromGoogle(ev.gcalId);
+    S.set('agenda_events',events.filter(e=>e.id!==agendaEditId));
+    closeModal('m-agenda-event');
+    renderAgenda();
+    toast('Evento excluído','ok');
+  });
+}
+
+// ══ GOOGLE CALENDAR API (OAuth 2.0 implicit flow) ══
+function connectGoogleCalendar(){
+  const clientId=prompt('Cole aqui seu Google OAuth Client ID (crie em console.cloud.google.com > Credenciais > OAuth client ID tipo "Web application", adicione este domínio em "Origens JavaScript autorizadas"):',S.get('gcal_client_id','')||'');
+  if(!clientId)return;
+  S.set('gcal_client_id',clientId);
+  const redirect=location.origin+location.pathname;
+  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(GCAL_SCOPE)}&include_granted_scopes=true&prompt=consent`;
+  window.location.href=url;
+}
+function handleGcalCallback(){
+  const hash=location.hash;
+  if(hash.includes('access_token=')){
+    const params=new URLSearchParams(hash.substring(1));
+    const token=params.get('access_token');
+    const expires=Date.now()+(+params.get('expires_in')||3600)*1000;
+    if(token){
+      gcalToken=token;
+      S.set('gcal_token',{token,expires});
+      history.replaceState(null,'',location.pathname);
+      toast('✅ Google Calendar conectado!','ok');
+      setTimeout(()=>syncFromGoogleCalendar(),500);
+    }
+  }
+  // Verificar se token expirou
+  const saved=S.get('gcal_token',null);
+  if(saved&&saved.expires&&saved.expires<Date.now()){
+    gcalToken=null;S.set('gcal_token',null);
+  }else if(saved&&saved.token){
+    gcalToken=saved.token;
+  }
+}
+async function syncFromGoogleCalendar(){
+  if(!gcalToken){toast('Conecte ao Google Calendar primeiro','err');return;}
+  try{
+    const now=new Date();const end=new Date();end.setMonth(end.getMonth()+3);
+    const res=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`,{headers:{Authorization:'Bearer '+gcalToken}});
+    if(!res.ok){
+      if(res.status===401){gcalToken=null;S.set('gcal_token',null);toast('Token expirado, reconecte','err');return;}
+      throw new Error('HTTP '+res.status);
+    }
+    const data=await res.json();
+    const events=S.get('agenda_events',[]);
+    let added=0;
+    (data.items||[]).forEach(it=>{
+      if(events.find(e=>e.gcalId===it.id))return;
+      const start=it.start?.dateTime||it.start?.date;if(!start)return;
+      const date=start.split('T')[0];
+      const time=it.start?.dateTime?start.split('T')[1].substring(0,5):'';
+      events.push({id:uid(),gcalId:it.id,title:it.summary||'(sem título)',date,time,desc:it.description||'',color:'#4285F4'});
+      added++;
+    });
+    S.set('agenda_events',events);
+    renderAgenda();
+    toast(`✅ ${added} evento(s) importados do Google`,'ok');
+  }catch(e){toast('Erro ao sincronizar: '+e.message,'err');}
+}
+async function pushEventToGoogle(localId){
+  if(!gcalToken)return;
+  const events=S.get('agenda_events',[]);
+  const ev=events.find(e=>e.id===localId);if(!ev)return;
+  try{
+    const startISO=ev.time?`${ev.date}T${ev.time}:00`:ev.date;
+    const endDt=new Date(startISO);endDt.setMinutes(endDt.getMinutes()+(ev.dur||60));
+    const body={summary:ev.title,description:ev.desc||'',start:ev.time?{dateTime:startISO}:{date:ev.date},end:ev.time?{dateTime:endDt.toISOString()}:{date:ev.date}};
+    const url=ev.gcalId?`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.gcalId}`:'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+    const res=await fetch(url,{method:ev.gcalId?'PATCH':'POST',headers:{Authorization:'Bearer '+gcalToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    ev.gcalId=data.id;S.set('agenda_events',events);
+    toast('✅ Sincronizado com Google','ok');
+  }catch(e){toast('Erro ao enviar p/ Google: '+e.message,'err');}
+}
+async function deleteEventFromGoogle(gcalId){
+  if(!gcalToken||!gcalId)return;
+  try{await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${gcalId}`,{method:'DELETE',headers:{Authorization:'Bearer '+gcalToken}});}catch(e){}
+}
+// Inicializar Google Calendar no boot
+handleGcalCallback();
 
 // ══ BOOT ══
 // 1. Carregar dados do Firebase PRIMEIRO (fonte da verdade)
