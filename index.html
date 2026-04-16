@@ -592,6 +592,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- Google Identity Services (funciona em PWA via postMessage, não depende de redirect) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -2035,22 +2037,68 @@ function isStandalonePWA(){
 function isMobile(){
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
+// ══ Google Identity Services (GIS) — funciona em PWA, sem redirect ══
+// Web Client ID do Google OAuth: Firebase Console > Authentication > Sign-in method > Google > Web SDK config
+function getGisClientId(){
+  return localStorage.getItem('fm2_gis_client_id')||'';
+}
+function askAndSaveGisClientId(){
+  const v=prompt('Cole aqui o "Web client ID" do Google.\n\nOnde encontrar:\n1. Firebase Console > Authentication > Sign-in method\n2. Clique em Google (provedor)\n3. Expanda "Web SDK configuration"\n4. Copie o "Web client ID"\n\nExemplo: 910965129764-xxxxxxx.apps.googleusercontent.com');
+  if(v&&v.includes('.apps.googleusercontent.com')){
+    localStorage.setItem('fm2_gis_client_id',v.trim());
+    return v.trim();
+  }
+  return '';
+}
+function handleGoogleCredential(response){
+  const idToken=response.credential;
+  const credential=firebase.auth.GoogleAuthProvider.credential(idToken);
+  document.getElementById('login-error').textContent='Entrando...';
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
+    return auth.signInWithCredential(credential);
+  }).catch(err=>{
+    console.error('GIS signInWithCredential err:',err);
+    document.getElementById('login-error').textContent='Erro Google: '+err.message;
+  });
+}
 function doGoogleLogin(){
   const provider=new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
   document.getElementById('login-error').textContent='Abrindo Google...';
-  // Em PWA/mobile, popup não funciona — usar redirect
-  const useRedirect=isStandalonePWA()||isMobile();
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
-    if(useRedirect){
-      return auth.signInWithRedirect(provider);
-    }else{
-      return auth.signInWithPopup(provider);
-    }
-  }).catch(err=>{
-    if(err.code==='auth/popup-closed-by-user'||err.code==='auth/cancelled-popup-request'){
+  // Em PWA standalone (iOS/Android), usar Google Identity Services (não bloqueia popup)
+  if(isStandalonePWA()&&window.google&&google.accounts&&google.accounts.id){
+    let clientId=getGisClientId();
+    if(!clientId){
       document.getElementById('login-error').textContent='';
+      clientId=askAndSaveGisClientId();
+      if(!clientId){
+        document.getElementById('login-error').textContent='Configure o Client ID do Google ou use e-mail/senha.';
+        return;
+      }
+    }
+    try{
+      google.accounts.id.initialize({
+        client_id:clientId,
+        callback:handleGoogleCredential,
+        auto_select:false,
+        use_fedcm_for_prompt:true,
+      });
+      google.accounts.id.prompt(notification=>{
+        if(notification.isNotDisplayed()||notification.isSkippedMoment()){
+          document.getElementById('login-error').textContent='Não foi possível abrir o Google. Use e-mail/senha.';
+        }
+      });
       return;
+    }catch(e){
+      console.warn('GIS err:',e);
+      document.getElementById('login-error').textContent='Erro Google: '+e.message+'. Use e-mail/senha.';
+      return;
+    }
+  }
+  // Desktop / Safari browser: popup normal
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>auth.signInWithPopup(provider)).catch(err=>{
+    if(err.code==='auth/popup-closed-by-user'||err.code==='auth/cancelled-popup-request'){
+      document.getElementById('login-error').textContent='';return;
     }
     if(err.code==='auth/unauthorized-domain'){
       document.getElementById('login-error').textContent='Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings.';
@@ -2060,18 +2108,6 @@ function doGoogleLogin(){
     console.error('Google login error:',err.code,err.message);
   });
 }
-// Tratar retorno do redirect Google (PWA/mobile)
-auth.getRedirectResult().then(result=>{
-  if(result&&result.user){
-    console.log('✅ Login via redirect completo');
-  }
-}).catch(err=>{
-  if(err&&err.code&&err.code!=='auth/credential-already-in-use'){
-    console.warn('Redirect result err:',err.code,err.message);
-    const el=document.getElementById('login-error');
-    if(el)el.textContent='Erro Google: '+err.message;
-  }
-});
 function doLogout(){
   auth.signOut().then(()=>{
     document.getElementById('login-screen').classList.remove('hidden');
@@ -2080,12 +2116,16 @@ function doLogout(){
 }
 function onAuthChange(user){
   if(user){
-    const email=user.email;
-    const admin=ADMINS[email];
+    const email=(user.email||'').toLowerCase().trim();
+    // Busca case-insensitive no ADMINS
+    const adminKey=Object.keys(ADMINS).find(k=>k.toLowerCase().trim()===email);
+    const admin=adminKey?ADMINS[adminKey]:null;
     if(!admin){
-      // Não é admin — deslogar
+      console.warn('Email não autorizado:',email,'| Admins:',Object.keys(ADMINS));
       auth.signOut();
-      document.getElementById('login-error').textContent='Acesso negado. Apenas administradores autorizados.';
+      document.getElementById('login-error').textContent='Acesso negado. E-mail "'+email+'" não autorizado.';
+      const loading=document.getElementById('auth-loading');if(loading)loading.style.display='none';
+      document.getElementById('login-screen').classList.remove('hidden');
       return;
     }
     currentUser={email,name:admin.name,key:admin.key,role:admin.role,photo:user.photoURL};
