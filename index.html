@@ -2399,7 +2399,7 @@ function openNewTaskModal(){
   const sel=document.getElementById('nt-client');
   const clients=S.get('clients',[]);
   sel.innerHTML='<option value="">— Sem cliente (tarefa geral) —</option>'+clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-  openNewTaskModal();
+  openModal('m-new-task');
 }
 function addTaskFromModal(){
   const t=document.getElementById('nt-desc').value.trim();if(!t){toast('Descrição obrigatória','err');return;}
