@@ -386,8 +386,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .fab{display:none;position:fixed;bottom:78px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--navy);border:none;font-size:28px;font-weight:800;cursor:pointer;box-shadow:0 6px 20px rgba(212,176,84,.45);z-index:90;align-items:center;justify-content:center;}
 
 /* Mobile bottom nav */
-.mbn{display:none;position:fixed;left:0;right:0;bottom:0;height:60px;background:var(--white);border-top:1px solid var(--border);z-index:95;grid-template-columns:repeat(5,1fr);box-shadow:0 -2px 12px rgba(0,0,0,.06);}
-.mbn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:9.5px;font-weight:600;color:var(--text-3);padding:6px 2px;}
+.mbn{display:none;position:fixed;left:0;right:0;bottom:0;height:60px;background:var(--white);border-top:1px solid var(--border);z-index:95;grid-template-columns:repeat(6,1fr);box-shadow:0 -2px 12px rgba(0,0,0,.06);}
+.mbn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:9px;font-weight:600;color:var(--text-3);padding:6px 1px;}
+.mbn-item .ic{font-size:18px;}
 .mbn-item .ic{font-size:18px;}
 .mbn-item.active{color:var(--navy);}
 .mbn-item.active .ic{color:var(--gold);}
@@ -540,6 +541,38 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   /* ═══ FILE GRID ═══ */
   .file-grid-item{padding:10px;}
   .file-grid-item .ico-big{font-size:30px;}
+
+  /* ═══ FOCUS AGENDA MOBILE ═══ */
+  #p-agenda .card-header{flex-direction:column;align-items:stretch !important;}
+  #p-agenda .card-header>div{width:100%;justify-content:center;flex-wrap:wrap;}
+  #agenda-cal-body>div{min-height:60px !important;padding:3px !important;}
+  #agenda-cal-body>div>div:first-child{font-size:10px !important;}
+  #agenda-cal-body>div>div:not(:first-child){font-size:8px !important;padding:1px 3px !important;}
+  #agenda-cal-hdrs>div{font-size:9px !important;}
+  #agenda-day-view>div{padding:10px !important;}
+  #agenda-upcoming>div{flex-wrap:wrap !important;}
+  #m-agenda-event .modal{width:100% !important;}
+
+  /* ═══ TASK CLIENT BADGE (Cliente: nome) ═══ */
+  .task-row span[style*="var(--navy)"][style*="color:#fff"]{font-size:9.5px !important;padding:2px 6px !important;max-width:100% !important;overflow:hidden;text-overflow:ellipsis;}
+
+  /* ═══ TASK DETAILS MODAL ═══ */
+  #m-task-details .modal-f{flex-direction:column;}
+  #m-task-details .modal-f .btn{width:100% !important;min-width:0 !important;}
+
+  /* ═══ MINI CALENDAR PICKER ═══ */
+  #cal-picker{position:fixed !important;top:50% !important;left:50% !important;right:auto !important;transform:translate(-50%,-50%) !important;max-width:90vw !important;width:280px !important;z-index:9999 !important;}
+
+  /* ═══ CALENDÁRIO DO CLIENTE — drag-drop mobile ═══ */
+  .cal-post{touch-action:none !important;}
+  .cal-day.drag-over{background:#fef3c7 !important;}
+
+  /* ═══ CONFIRM MODAL ═══ */
+  #confirm-modal>div{width:90vw !important;max-width:360px !important;padding:24px 20px 20px !important;}
+
+  /* ═══ PENDING TASKS GERENCIAR ═══ */
+  #d-pending-tasks>div{flex-wrap:wrap !important;gap:6px !important;}
+  #d-pending-tasks>div>span:first-child{width:100% !important;}
 }
 
 /* ═══ TABLET ═══ */
@@ -1487,6 +1520,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <div class="mbn">
   <div class="mbn-item" onclick="go('dashboard')" id="mbn-dashboard"><span class="ic">⌂</span><span>Home</span></div>
   <div class="mbn-item" onclick="go('clientes')" id="mbn-clientes"><span class="ic">👥</span><span>Clientes</span></div>
+  <div class="mbn-item" onclick="go('agenda')" id="mbn-agenda"><span class="ic">📅</span><span>Agenda</span></div>
   <div class="mbn-item" onclick="go('caixa')" id="mbn-caixa"><span class="ic">💰</span><span>Caixa</span></div>
   <div class="mbn-item" onclick="go('relatorios')" id="mbn-relatorios"><span class="ic">📊</span><span>Relatórios</span></div>
   <div class="mbn-item" onclick="toggleSb(true)"><span class="ic">☰</span><span>Menu</span></div>
