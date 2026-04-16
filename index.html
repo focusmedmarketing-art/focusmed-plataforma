@@ -9,10 +9,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0B1F3A">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="logo.png">
-<link rel="apple-touch-icon" sizes="180x180" href="logo.png">
-<link rel="icon" type="image/png" href="logo.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230B1F3A'/><text x='16' y='22' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='16' fill='%23D4B054'>FM</text></svg>">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.svg">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%230B1F3A'/><text x='256' y='360' text-anchor='middle' font-family='Georgia,serif' font-weight='700' font-style='italic' font-size='340' fill='%23ffffff'>F</text></svg>">
 <title>FocusMed — Plataforma Interna</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -2029,14 +2029,29 @@ function doLogin(){
     }
   });
 }
+function isStandalonePWA(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
+function isMobile(){
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
 function doGoogleLogin(){
   const provider=new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  // Garantir persistência LOCAL antes de abrir o popup Google
+  document.getElementById('login-error').textContent='Abrindo Google...';
+  // Em PWA/mobile, popup não funciona — usar redirect
+  const useRedirect=isStandalonePWA()||isMobile();
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
-    return auth.signInWithPopup(provider);
+    if(useRedirect){
+      return auth.signInWithRedirect(provider);
+    }else{
+      return auth.signInWithPopup(provider);
+    }
   }).catch(err=>{
-    if(err.code==='auth/popup-closed-by-user') return;
+    if(err.code==='auth/popup-closed-by-user'||err.code==='auth/cancelled-popup-request'){
+      document.getElementById('login-error').textContent='';
+      return;
+    }
     if(err.code==='auth/unauthorized-domain'){
       document.getElementById('login-error').textContent='Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings.';
     }else{
@@ -2045,6 +2060,18 @@ function doGoogleLogin(){
     console.error('Google login error:',err.code,err.message);
   });
 }
+// Tratar retorno do redirect Google (PWA/mobile)
+auth.getRedirectResult().then(result=>{
+  if(result&&result.user){
+    console.log('✅ Login via redirect completo');
+  }
+}).catch(err=>{
+  if(err&&err.code&&err.code!=='auth/credential-already-in-use'){
+    console.warn('Redirect result err:',err.code,err.message);
+    const el=document.getElementById('login-error');
+    if(el)el.textContent='Erro Google: '+err.message;
+  }
+});
 function doLogout(){
   auth.signOut().then(()=>{
     document.getElementById('login-screen').classList.remove('hidden');
