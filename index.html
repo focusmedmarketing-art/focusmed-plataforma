@@ -1685,6 +1685,44 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </div>
 </div>
 
+<!-- TASK DETAILS MODAL -->
+<div class="overlay" id="m-task-details">
+  <div class="modal" style="width:460px">
+    <div class="modal-h"><span class="modal-title">📋 Detalhes da Tarefa</span><button class="modal-x" onclick="closeModal('m-task-details')">×</button></div>
+    <div class="modal-b">
+      <input type="hidden" id="td-id">
+      <div style="background:var(--bg);border-radius:10px;padding:16px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Descrição</div>
+        <div id="td-text" style="font-size:15px;color:var(--navy);font-weight:600;line-height:1.4"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Cliente</div>
+        <div id="td-client" style="font-size:13px"></div>
+      </div>
+      <div class="fr2">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Responsável</div>
+          <div id="td-resp" style="font-size:13px;color:var(--text);font-weight:600"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Data</div>
+          <div id="td-date" style="font-size:13px;color:var(--text);font-weight:600"></div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Status</div>
+        <div id="td-status" style="font-size:13px"></div>
+      </div>
+    </div>
+    <div class="modal-f" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="closeModal('m-task-details')">Fechar</button>
+      <button class="btn btn-outline" id="td-goto-client" style="display:none">Ver Cliente</button>
+      <button class="btn btn-red" onclick="tdDelete()">Excluir</button>
+      <button class="btn btn-navy" onclick="tdToggle()">Alternar Status</button>
+    </div>
+  </div>
+</div>
+
 <!-- PÓS-GRAVAÇÃO -->
 <div class="overlay" id="m-pos-grav">
   <div class="modal" style="width:500px">
@@ -2387,13 +2425,39 @@ function renderTaskList(){
   const doneCount=done.length;const totalCount=all.length;
   let header='';
   if(totalCount>0){header=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--text-3)">${pending.length} pendente${pending.length!==1?'s':''} · ${doneCount} concluída${doneCount!==1?'s':''}</span><span style="font-size:11px;font-weight:600;color:${doneCount===totalCount?'var(--green)':'var(--gold)'}">⬤ ${Math.round(doneCount/totalCount*100)}%</span></div>`;}
-  el.innerHTML=header+all.map(t=>`<div class="task-row" style="opacity:${t.done?'0.6':'1'}">
-    <div class="chk ${t.done?'done':''}" onclick="toggleTask('${t.id}')" title="${t.done?'Desmarcar':'Marcar como feita'}"></div>
-    <span style="flex:1;font-size:13px;${t.done?'text-decoration:line-through;color:var(--text-3)':'color:var(--text)'}">${t.text}</span>
-    <span class="resp-badge resp-${t.resp}">${t.resp}</span>
-    ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
-  </div>`).join('');
+  const clients=S.get('clients',[]);
+  el.innerHTML=header+all.map(t=>{
+    const client=t.cid?clients.find(c=>c.id===t.cid):null;
+    const clientName=client?client.name:'';
+    const shortName=clientName.length>18?clientName.substring(0,16)+'…':clientName;
+    return`<div class="task-row" style="opacity:${t.done?'0.6':'1'};cursor:pointer" onclick="showTaskDetails('${t.id}')">
+      <div class="chk ${t.done?'done':''}" onclick="event.stopPropagation();toggleTask('${t.id}')" title="${t.done?'Desmarcar':'Marcar como feita'}"></div>
+      <span style="flex:1;font-size:13px;${t.done?'text-decoration:line-through;color:var(--text-3)':'color:var(--text)'}">${t.text}</span>
+      ${clientName?`<span style="font-size:10.5px;background:var(--navy);color:#fff;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap" title="Cliente: ${clientName}">Cliente: ${shortName}</span>`:''}
+      <span class="resp-badge resp-${t.resp}">${t.resp}</span>
+      ${t.date?`<span style="font-size:10px;color:var(--text-3)">${fmtDateBR(t.date)}</span>`:''}
+    </div>`;
+  }).join('');
 }
+function showTaskDetails(id){
+  const t=S.get('tasks',[]).find(x=>x.id===id);
+  if(!t)return;
+  const clients=S.get('clients',[]);
+  const client=t.cid?clients.find(c=>c.id===t.cid):null;
+  const respMap={JV:'João Victor',Bia:'Bia',Leo:'Leo'};
+  document.getElementById('td-text').textContent=t.text;
+  document.getElementById('td-client').innerHTML=client?`<span style="background:var(--navy);color:#fff;padding:4px 10px;border-radius:6px;font-weight:600">Cliente: ${client.name}</span>`:'<span style="color:var(--text-3);font-style:italic">Tarefa geral (sem cliente)</span>';
+  document.getElementById('td-resp').textContent=respMap[t.resp]||t.resp;
+  document.getElementById('td-date').textContent=t.date?fmtDateBR(t.date):'Sem data';
+  document.getElementById('td-status').innerHTML=t.done?'<span style="color:var(--green);font-weight:600">✓ Concluída</span>':'<span style="color:var(--orange);font-weight:600">○ Pendente</span>';
+  document.getElementById('td-id').value=id;
+  if(client)document.getElementById('td-goto-client').style.display='';
+  else document.getElementById('td-goto-client').style.display='none';
+  document.getElementById('td-goto-client').onclick=()=>{closeModal('m-task-details');go('cliente',client.id);};
+  openModal('m-task-details');
+}
+function tdToggle(){const id=document.getElementById('td-id').value;toggleTask(id);closeModal('m-task-details');}
+function tdDelete(){const id=document.getElementById('td-id').value;confirmModal('Deseja excluir esta tarefa?',{title:'Excluir tarefa?',icon:'🗑️'}).then(ok=>{if(ok){delTask(id);closeModal('m-task-details');}});}
 function openNewTaskModal(){
   // Popular select de clientes
   const sel=document.getElementById('nt-client');
