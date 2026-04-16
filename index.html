@@ -592,7 +592,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen">
+<!-- Loading screen enquanto Firebase verifica auth -->
+<div id="auth-loading" style="position:fixed;inset:0;z-index:99998;background:linear-gradient(135deg,#0b0f1d 0%,#111827 40%,#1a2035 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px">
+  <img src="logo.png" alt="FocusMed" style="max-width:200px;height:auto">
+  <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:#D4B054;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<div id="login-screen" class="hidden">
   <div class="login-card">
     <div style="margin-bottom:28px;display:flex;justify-content:center"><img src="logo.png" alt="FocusMed" style="max-width:260px;height:auto"></div>
     <div class="login-fg">
@@ -1999,9 +2006,11 @@ function doLogin(){
   const pass=document.getElementById('login-pass').value;
   if(!email||!pass){document.getElementById('login-error').textContent='Preencha e-mail e senha';return;}
   document.getElementById('login-error').textContent='Entrando...';
-  auth.signInWithEmailAndPassword(email,pass).catch(err=>{
+  // Garantir persistência LOCAL antes de logar para manter sessão ativa em todos os dispositivos
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
+    return auth.signInWithEmailAndPassword(email,pass);
+  }).catch(err=>{
     if(err.code==='auth/user-not-found'){
-      // Criar conta automaticamente se for admin
       if(ADMINS[email]){
         auth.createUserWithEmailAndPassword(email,pass).then(cred=>{
           return cred.user.updateProfile({displayName:ADMINS[email].name});
@@ -2019,7 +2028,10 @@ function doLogin(){
 function doGoogleLogin(){
   const provider=new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({prompt:'select_account'});
-  auth.signInWithPopup(provider).catch(err=>{
+  // Garantir persistência LOCAL antes de abrir o popup Google
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
+    return auth.signInWithPopup(provider);
+  }).catch(err=>{
     if(err.code==='auth/popup-closed-by-user') return;
     if(err.code==='auth/unauthorized-domain'){
       document.getElementById('login-error').textContent='Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings.';
@@ -2057,19 +2069,29 @@ function onAuthChange(user){
       avEl.textContent=currentUser.key;
       avEl.style.background='var(--gold)';
     }
-    // Esconder login, mostrar app
+    // Esconder login + loading, mostrar app
     document.getElementById('login-screen').classList.add('hidden');
+    const loading=document.getElementById('auth-loading');if(loading)loading.style.display='none';
   }else{
-    // Não logado — mostrar login
+    // Não logado — mostrar login e esconder loading
     document.getElementById('login-screen').classList.remove('hidden');
+    const loading=document.getElementById('auth-loading');if(loading)loading.style.display='none';
   }
 }
-// Persistência LOCAL — mantém login mesmo fechando o navegador
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(()=>{
-  console.log('🔒 Persistência LOCAL ativada');
-}).catch(e=>console.warn('Persistência err:',e));
-// Listener de autenticação
-auth.onAuthStateChanged(onAuthChange);
+// ══ PERSISTÊNCIA DE LOGIN ══
+// Configurar LOCAL ANTES de qualquer outra operação de auth (IndexedDB persiste entre sessões e abas)
+// e só depois registrar o listener — assim o Firebase restaura o usuário antes de avaliar o estado.
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+  .then(()=>{
+    console.log('🔒 Persistência LOCAL ativada');
+    auth.onAuthStateChanged(onAuthChange);
+  })
+  .catch(e=>{
+    console.warn('Persistência err, usando fallback SESSION:',e);
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).finally(()=>{
+      auth.onAuthStateChanged(onAuthChange);
+    });
+  });
 
 // ══ STORAGE com SYNC Firebase (bidirecional) ══
 const _syncQueue=new Set();
