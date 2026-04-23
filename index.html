@@ -4484,9 +4484,27 @@ function saveAgendaEvent(){
   const title=document.getElementById('ae-title').value.trim();
   const date=document.getElementById('ae-date').value;
   if(!title||!date){toast('Preencha título e data','err');return;}
-  // Parse de convidados (emails separados por vírgula)
+  // Parse de convidados — extrair APENAS e-mails válidos via regex
   const attendeesRaw=document.getElementById('ae-attendees').value.trim();
-  const attendees=attendeesRaw?attendeesRaw.split(/[,;\s]+/).map(e=>e.trim().toLowerCase()).filter(e=>e&&e.includes('@')):[];
+  const EMAIL_REGEX=/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const validEmails=attendeesRaw?(attendeesRaw.match(EMAIL_REGEX)||[]).map(e=>e.toLowerCase()):[];
+  // Detectar tokens que parecem ser emails mas estão malformados
+  if(attendeesRaw){
+    const tokens=attendeesRaw.split(/[,;]+/).map(t=>t.trim()).filter(Boolean);
+    const malformed=tokens.filter(t=>{
+      // Se contém @ mas não bate com o regex de email válido
+      if(!t.includes('@'))return false;
+      // Verifica se TODO o token é um e-mail válido (não só uma parte dele)
+      const matches=t.match(EMAIL_REGEX)||[];
+      return matches.length===0||(matches.length===1&&matches[0].length<t.replace(/\s/g,'').length-2);
+    });
+    if(malformed.length){
+      toast('E-mail inválido: "'+malformed[0]+'" — verifique e tente novamente','err');
+      return;
+    }
+  }
+  // Remover duplicatas
+  const attendees=[...new Set(validEmails)];
   const data={
     title,date,
     time:document.getElementById('ae-time').value,
@@ -4602,7 +4620,20 @@ function gcalErrorHandler(status,msg){
     });
     return;
   }
-  toast('Erro Google Calendar: '+msg,'err');
+  // Tentar extrair mensagem amigável do JSON de erro do Google
+  let friendly='Erro '+status;
+  try{
+    const j=JSON.parse(msg);
+    const errMsg=j?.error?.message||'';
+    if(errMsg.includes('Invalid attendee email')){
+      friendly='⚠️ E-mail de convidado inválido. Verifique a lista e remova e-mails errados.';
+    }else if(errMsg.includes('Invalid')){
+      friendly='⚠️ Dados inválidos: '+errMsg;
+    }else if(errMsg){
+      friendly='Erro: '+errMsg;
+    }
+  }catch(_){}
+  toast(friendly,'err');
 }
 async function syncFromGoogleCalendar(){
   if(!gcalToken){toast('Conecte ao Google Calendar primeiro','err');return;}
