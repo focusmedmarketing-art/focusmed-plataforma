@@ -1494,25 +1494,45 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 <!-- MODAL: NOVO EVENTO DA AGENDA -->
 <div class="overlay" id="m-agenda-event">
-  <div class="modal" style="width:460px">
+  <div class="modal" style="width:520px">
     <div class="modal-h"><span class="modal-title" id="m-agenda-event-title">+ Novo Evento</span><button class="modal-x" onclick="closeModal('m-agenda-event')">×</button></div>
     <div class="modal-b">
       <div class="fg"><label class="lbl">Título do evento *</label><input id="ae-title" class="inp" placeholder="Ex: Reunião com Dr. Silva"></div>
       <div class="fr2">
         <div class="fg"><label class="lbl">Data *</label><input id="ae-date" class="inp" type="date"></div>
-        <div class="fg"><label class="lbl">Hora</label><input id="ae-time" class="inp" type="time"></div>
+        <div class="fg"><label class="lbl">Hora início</label><input id="ae-time" class="inp" type="time"></div>
       </div>
-      <div class="fg"><label class="lbl">Duração (min)</label><input id="ae-dur" class="inp" type="number" value="60"></div>
-      <div class="fg"><label class="lbl">Descrição</label><textarea id="ae-desc" class="inp" rows="2"></textarea></div>
-      <div class="fg"><label class="lbl">Cor</label><select id="ae-color" class="inp">
-        <option value="#0B1F3A">Azul (padrão)</option>
-        <option value="#D4B054">Dourado</option>
-        <option value="#10b981">Verde</option>
-        <option value="#ef4444">Vermelho</option>
-        <option value="#8B5CF6">Roxo</option>
-        <option value="#f59e0b">Laranja</option>
-      </select></div>
-      <div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="ae-gcal" checked> Enviar também para Google Calendar</label></div>
+      <div class="fr2">
+        <div class="fg"><label class="lbl">Duração (min)</label><input id="ae-dur" class="inp" type="number" value="60"></div>
+        <div class="fg"><label class="lbl">Cor</label><select id="ae-color" class="inp">
+          <option value="#0B1F3A">Azul (padrão)</option>
+          <option value="#D4B054">Dourado</option>
+          <option value="#10b981">Verde</option>
+          <option value="#ef4444">Vermelho</option>
+          <option value="#8B5CF6">Roxo</option>
+          <option value="#f59e0b">Laranja</option>
+        </select></div>
+      </div>
+      <div class="fg"><label class="lbl">📍 Local (opcional)</label><input id="ae-location" class="inp" placeholder="Ex: Google Meet, Endereço, Zoom..."></div>
+      <div class="fg"><label class="lbl">👥 Convidados (e-mails separados por vírgula)</label><input id="ae-attendees" class="inp" placeholder="email1@gmail.com, email2@gmail.com"><small style="color:var(--text-3);font-size:11px">Os convidados receberão e-mail com convite e podem confirmar presença</small></div>
+      <div class="fr2">
+        <div class="fg"><label class="lbl">🔁 Repetir</label><select id="ae-repeat" class="inp">
+          <option value="">Não repetir</option>
+          <option value="DAILY">Todos os dias</option>
+          <option value="WEEKLY">Toda semana</option>
+          <option value="MONTHLY">Todo mês</option>
+          <option value="YEARLY">Todo ano</option>
+        </select></div>
+        <div class="fg"><label class="lbl">⏰ Lembrete</label><select id="ae-reminder" class="inp">
+          <option value="">Sem lembrete</option>
+          <option value="10">10 min antes</option>
+          <option value="30">30 min antes</option>
+          <option value="60">1 hora antes</option>
+          <option value="1440">1 dia antes</option>
+        </select></div>
+      </div>
+      <div class="fg"><label class="lbl">📝 Descrição</label><textarea id="ae-desc" class="inp" rows="3" placeholder="Detalhes do evento, link da reunião, anotações..."></textarea></div>
+      <div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="ae-gcal" checked> 📅 Enviar para Google Calendar (e enviar convites por e-mail)</label></div>
     </div>
     <div class="modal-f">
       <button class="btn btn-outline" onclick="closeModal('m-agenda-event')">Cancelar</button>
@@ -4397,11 +4417,11 @@ function renderAgendaUpcoming(){
       <div style="font-size:16px;font-weight:800">${e.date.split('-')[2]}</div>
       <div style="font-size:10px">${['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(e.date.split('-')[1])-1]}</div>
     </div>
-    <div style="flex:1">
+    <div style="flex:1;min-width:0">
       <div style="font-size:14px;font-weight:600;color:var(--navy)">${e.title}</div>
-      <div style="font-size:11px;color:var(--text-3)">${e.time||'Dia todo'}${e.desc?' · '+e.desc.substring(0,60):''}</div>
+      <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis">${e.time||'Dia todo'}${e.location?' · 📍 '+e.location:''}${e.attendees&&e.attendees.length?' · 👥 '+e.attendees.length:''}</div>
     </div>
-    ${e.gcalId?'<span style="font-size:10px;color:var(--green);font-weight:600">✓ Google</span>':''}
+    ${e.gcalId?'<span style="font-size:10px;color:var(--green);font-weight:600;white-space:nowrap">✓ Google</span>':''}
   </div>`).join('');
 }
 function agendaPrev(){
@@ -4433,6 +4453,10 @@ function clickAgendaDay(ds){
   document.getElementById('ae-dur').value='60';
   document.getElementById('ae-desc').value='';
   document.getElementById('ae-color').value='#0B1F3A';
+  document.getElementById('ae-location').value='';
+  document.getElementById('ae-attendees').value='';
+  document.getElementById('ae-repeat').value='';
+  document.getElementById('ae-reminder').value='';
   document.getElementById('ae-gcal').checked=true;
   openModal('m-agenda-event');
 }
@@ -4449,34 +4473,73 @@ function editAgendaEvent(id){
   document.getElementById('ae-dur').value=ev.dur||60;
   document.getElementById('ae-desc').value=ev.desc||'';
   document.getElementById('ae-color').value=ev.color||'#0B1F3A';
-  document.getElementById('ae-gcal').checked=!!ev.gcalId||true;
+  document.getElementById('ae-location').value=ev.location||'';
+  document.getElementById('ae-attendees').value=(ev.attendees||[]).join(', ');
+  document.getElementById('ae-repeat').value=ev.repeat||'';
+  document.getElementById('ae-reminder').value=ev.reminder||'';
+  document.getElementById('ae-gcal').checked=ev.gcalId?true:true;
   openModal('m-agenda-event');
 }
 function saveAgendaEvent(){
   const title=document.getElementById('ae-title').value.trim();
   const date=document.getElementById('ae-date').value;
   if(!title||!date){toast('Preencha título e data','err');return;}
+  // Parse de convidados (emails separados por vírgula)
+  const attendeesRaw=document.getElementById('ae-attendees').value.trim();
+  const attendees=attendeesRaw?attendeesRaw.split(/[,;\s]+/).map(e=>e.trim().toLowerCase()).filter(e=>e&&e.includes('@')):[];
   const data={
     title,date,
     time:document.getElementById('ae-time').value,
     dur:+document.getElementById('ae-dur').value||60,
     desc:document.getElementById('ae-desc').value,
     color:document.getElementById('ae-color').value,
+    location:document.getElementById('ae-location').value.trim(),
+    attendees,
+    repeat:document.getElementById('ae-repeat').value,
+    reminder:document.getElementById('ae-reminder').value,
   };
   const sendGcal=document.getElementById('ae-gcal').checked;
   const events=S.get('agenda_events',[]);
+  let savedId;
   if(agendaEditId){
     const i=events.findIndex(e=>e.id===agendaEditId);
-    if(i>=0){events[i]={...events[i],...data};}
+    if(i>=0){events[i]={...events[i],...data};savedId=agendaEditId;}
   }else{
-    events.push({id:uid(),...data});
+    const newEv={id:uid(),...data};
+    events.push(newEv);
+    savedId=newEv.id;
   }
   S.set('agenda_events',events);
   closeModal('m-agenda-event');
   renderAgenda();
-  toast('Evento salvo','ok');
-  if(sendGcal&&gcalToken)pushEventToGoogle(agendaEditId||events[events.length-1].id);
-  else if(sendGcal&&!gcalToken)toast('Conecte ao Google Calendar para sincronizar','err');
+  toast('Evento salvo'+(attendees.length?' · enviando convites...':''),'ok');
+  if(sendGcal&&gcalToken){
+    pushEventToGoogle(savedId);
+  }else if(sendGcal&&!gcalToken){
+    toast('Conecte ao Google Calendar para enviar convites por e-mail','err');
+  }else if(attendees.length){
+    // Sem Google: enviar e-mail via Formsubmit como fallback
+    sendInvitesViaFormsubmit(savedId);
+  }
+}
+// Enviar convites por e-mail sem Google Calendar (fallback usando Formsubmit)
+async function sendInvitesViaFormsubmit(eventId){
+  const ev=S.get('agenda_events',[]).find(e=>e.id===eventId);
+  if(!ev||!ev.attendees||!ev.attendees.length)return;
+  const dateBR=ev.date.split('-').reverse().join('/');
+  const fromName=currentUser?.name||'FocusMed';
+  for(const email of ev.attendees){
+    const subject=`Convite: ${ev.title} — ${dateBR}${ev.time?' '+ev.time:''}`;
+    const body=`Você foi convidado para o evento:\n\n📅 ${ev.title}\n🗓️ Data: ${dateBR}${ev.time?' às '+ev.time:''}\n⏱️ Duração: ${ev.dur||60} min\n${ev.location?'📍 Local: '+ev.location+'\n':''}${ev.desc?'\n📝 Descrição:\n'+ev.desc+'\n':''}\nConvidado por: ${fromName} (FocusMed)`;
+    try{
+      await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(email)}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Accept:'application/json'},
+        body:JSON.stringify({_subject:subject,_template:'box',name:fromName,email:'noreply@focusmed.com',message:body})
+      });
+    }catch(e){console.warn('Convite err:',e);}
+  }
+  toast(`📧 ${ev.attendees.length} convite(s) enviado(s)`,'ok');
 }
 function deleteAgendaEvent(){
   if(!agendaEditId)return;
@@ -4494,11 +4557,15 @@ function deleteAgendaEvent(){
 
 // ══ GOOGLE CALENDAR API (OAuth 2.0 implicit flow) ══
 function connectGoogleCalendar(){
-  const clientId=prompt('Cole aqui seu Google OAuth Client ID (crie em console.cloud.google.com > Credenciais > OAuth client ID tipo "Web application", adicione este domínio em "Origens JavaScript autorizadas"):',S.get('gcal_client_id','')||'');
+  const saved=S.get('gcal_client_id','')||'';
+  const help='COMO CRIAR O CLIENT ID:\n\n1. Acesse: https://console.cloud.google.com/apis/credentials?project=focusmed-plataforma\n2. Clique em "Create Credentials" > "OAuth client ID"\n3. Tipo: Web application\n4. Em "Authorized JavaScript origins" adicione: '+location.origin+'\n5. Em "Authorized redirect URIs" adicione: '+location.origin+location.pathname+'\n6. ATIVE TAMBÉM a Google Calendar API: https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=focusmed-plataforma\n\nCole o Client ID abaixo:';
+  const clientId=prompt(help,saved);
   if(!clientId)return;
-  S.set('gcal_client_id',clientId);
+  S.set('gcal_client_id',clientId.trim());
   const redirect=location.origin+location.pathname;
-  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(GCAL_SCOPE)}&include_granted_scopes=true&prompt=consent`;
+  // Escopos completos: ler/escrever calendar + events + sendUpdates
+  const scope='https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
+  const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId.trim())}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(scope)}&include_granted_scopes=true&prompt=consent`;
   window.location.href=url;
 }
 function handleGcalCallback(){
@@ -4523,50 +4590,113 @@ function handleGcalCallback(){
     gcalToken=saved.token;
   }
 }
+function gcalErrorHandler(status,msg){
+  if(status===401){
+    gcalToken=null;S.set('gcal_token',null);
+    toast('🔒 Token expirado. Clique em "Conectar Google" novamente.','err');
+    return;
+  }
+  if(status===403){
+    confirmModal('Erro 403: A Google Calendar API não está ativada OU o e-mail logado no Google não tem permissão.\n\nDeseja abrir o painel do Google Cloud para ativar a API agora?',{title:'API não ativada',icon:'⚠️',okText:'Abrir Google Cloud',okColor:'#4285F4'}).then(ok=>{
+      if(ok)window.open('https://console.cloud.google.com/apis/library/calendar-json.googleapis.com?project=focusmed-plataforma','_blank');
+    });
+    return;
+  }
+  toast('Erro Google Calendar: '+msg,'err');
+}
 async function syncFromGoogleCalendar(){
   if(!gcalToken){toast('Conecte ao Google Calendar primeiro','err');return;}
   try{
     const now=new Date();const end=new Date();end.setMonth(end.getMonth()+3);
     const res=await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`,{headers:{Authorization:'Bearer '+gcalToken}});
     if(!res.ok){
-      if(res.status===401){gcalToken=null;S.set('gcal_token',null);toast('Token expirado, reconecte','err');return;}
-      throw new Error('HTTP '+res.status);
+      const errText=await res.text();
+      console.error('GCal sync err:',res.status,errText);
+      gcalErrorHandler(res.status,errText);
+      return;
     }
     const data=await res.json();
     const events=S.get('agenda_events',[]);
-    let added=0;
+    let added=0,updated=0;
     (data.items||[]).forEach(it=>{
-      if(events.find(e=>e.gcalId===it.id))return;
       const start=it.start?.dateTime||it.start?.date;if(!start)return;
       const date=start.split('T')[0];
       const time=it.start?.dateTime?start.split('T')[1].substring(0,5):'';
-      events.push({id:uid(),gcalId:it.id,title:it.summary||'(sem título)',date,time,desc:it.description||'',color:'#4285F4'});
-      added++;
+      const attendees=(it.attendees||[]).map(a=>a.email).filter(Boolean);
+      const existing=events.find(e=>e.gcalId===it.id);
+      if(existing){
+        Object.assign(existing,{title:it.summary||'(sem título)',date,time,desc:it.description||'',location:it.location||'',attendees});
+        updated++;
+      }else{
+        events.push({id:uid(),gcalId:it.id,title:it.summary||'(sem título)',date,time,desc:it.description||'',location:it.location||'',attendees,color:'#4285F4'});
+        added++;
+      }
     });
     S.set('agenda_events',events);
     renderAgenda();
-    toast(`✅ ${added} evento(s) importados do Google`,'ok');
-  }catch(e){toast('Erro ao sincronizar: '+e.message,'err');}
+    toast(`✅ ${added} novos · ${updated} atualizados do Google`,'ok');
+  }catch(e){
+    console.error(e);
+    toast('Erro ao sincronizar: '+e.message,'err');
+  }
 }
 async function pushEventToGoogle(localId){
-  if(!gcalToken)return;
+  if(!gcalToken){toast('Conecte ao Google Calendar primeiro','err');return;}
   const events=S.get('agenda_events',[]);
   const ev=events.find(e=>e.id===localId);if(!ev)return;
   try{
     const startISO=ev.time?`${ev.date}T${ev.time}:00`:ev.date;
     const endDt=new Date(startISO);endDt.setMinutes(endDt.getMinutes()+(ev.dur||60));
-    const body={summary:ev.title,description:ev.desc||'',start:ev.time?{dateTime:startISO}:{date:ev.date},end:ev.time?{dateTime:endDt.toISOString()}:{date:ev.date}};
-    const url=ev.gcalId?`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.gcalId}`:'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+    const body={
+      summary:ev.title,
+      description:ev.desc||'',
+      location:ev.location||'',
+      start:ev.time?{dateTime:startISO,timeZone:'America/Sao_Paulo'}:{date:ev.date},
+      end:ev.time?{dateTime:endDt.toISOString(),timeZone:'America/Sao_Paulo'}:{date:ev.date},
+    };
+    // Convidados
+    if(ev.attendees&&ev.attendees.length){
+      body.attendees=ev.attendees.map(email=>({email}));
+      body.guestsCanModify=false;
+      body.guestsCanInviteOthers=false;
+      body.guestsCanSeeOtherGuests=true;
+    }
+    // Repetição
+    if(ev.repeat){
+      body.recurrence=[`RRULE:FREQ=${ev.repeat}`];
+    }
+    // Lembrete
+    if(ev.reminder){
+      body.reminders={useDefault:false,overrides:[{method:'email',minutes:+ev.reminder},{method:'popup',minutes:+ev.reminder}]};
+    }
+    // sendUpdates=all faz o Google enviar e-mails de convite a todos os attendees
+    const url=ev.gcalId
+      ?`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.gcalId}?sendUpdates=all`
+      :`https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all`;
     const res=await fetch(url,{method:ev.gcalId?'PATCH':'POST',headers:{Authorization:'Bearer '+gcalToken,'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!res.ok)throw new Error('HTTP '+res.status);
+    if(!res.ok){
+      const errText=await res.text();
+      console.error('GCal push err:',res.status,errText);
+      gcalErrorHandler(res.status,errText);
+      return;
+    }
     const data=await res.json();
-    ev.gcalId=data.id;S.set('agenda_events',events);
-    toast('✅ Sincronizado com Google','ok');
-  }catch(e){toast('Erro ao enviar p/ Google: '+e.message,'err');}
+    ev.gcalId=data.id;ev.gcalLink=data.htmlLink;
+    S.set('agenda_events',events);
+    renderAgenda();
+    const attMsg=(ev.attendees&&ev.attendees.length)?` · ${ev.attendees.length} convite(s) enviado(s) por e-mail`:'';
+    toast('✅ Evento sincronizado com Google'+attMsg,'ok');
+  }catch(e){
+    console.error(e);
+    toast('Erro ao enviar p/ Google: '+e.message,'err');
+  }
 }
 async function deleteEventFromGoogle(gcalId){
   if(!gcalToken||!gcalId)return;
-  try{await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${gcalId}`,{method:'DELETE',headers:{Authorization:'Bearer '+gcalToken}});}catch(e){}
+  try{
+    // sendUpdates=all → notifica convidados sobre cancelamento
+    await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${gcalId}?sendUpdates=all`,{method:'DELETE',headers:{Authorization:'Bearer '+gcalToken}});
+  }catch(e){console.warn(e);}
 }
 // Inicializar Google Calendar no boot
 handleGcalCallback();
