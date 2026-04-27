@@ -472,10 +472,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   /* ═══ CALENDÁRIO ═══ */
   .cal-grid{gap:2px !important;}
-  .cal-day{min-height:40px;padding:2px;}
-  .cal-day .dn{font-size:9px;}
-  .cal-post{font-size:0;padding:0;width:6px;height:6px;border-radius:50%;display:inline-block;margin:1px;}
+  .cal-day{min-height:75px !important;padding:3px !important;}
+  .cal-day .dn{font-size:11px !important;font-weight:700;}
+  .cal-post{font-size:8.5px !important;padding:2px 4px !important;width:auto !important;height:auto !important;border-radius:4px !important;display:block !important;margin:1px 0 !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;}
   .cal-day-hdr{font-size:9px;padding:3px 0;}
+  .cal-add-btn{display:flex !important;font-size:11px !important;}
 
   /* ═══ KANBAN GERAL ═══ */
   .kanban{grid-template-columns:1fr !important;}
@@ -1617,7 +1618,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
       <div class="fg"><label class="lbl">Status</label><select id="np-status" class="inp"><option value="pendente">⬜ A produzir</option><option value="edicao">🎬 Em edição</option><option value="aprovacao">⏳ Ag. aprovação</option><option value="aprovado">✅ Aprovado</option><option value="publicado">🟢 Publicado</option></select></div>
       <div class="fg"><label class="lbl">Legenda</label><textarea id="np-leg" class="inp" rows="3" placeholder="Legenda completa..."></textarea></div>
-      <div class="fg"><label class="lbl">Link Drive</label><input id="np-drive" class="inp" placeholder="https://drive.google.com/..."></div>
+      <div class="fg"><label class="lbl">Link Drive (opcional)</label><input id="np-drive" class="inp" placeholder="https://drive.google.com/..."></div>
+      <div class="fg">
+        <label class="lbl">📸 Imagens / Arquivos do Post</label>
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg)" onclick="document.getElementById('np-files-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="event.preventDefault();this.style.borderColor='var(--border)';handlePostFiles(event.dataTransfer.files)">
+          <div style="font-size:24px;margin-bottom:4px">📁</div>
+          <div style="font-size:12px;color:var(--text-2);font-weight:600">Clique ou arraste arquivos aqui</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:2px">JPG, PNG, MP4 — várias imagens (carrossel)</div>
+        </div>
+        <input type="file" id="np-files-input" multiple accept="image/*,video/*" style="display:none" onchange="handlePostFiles(this.files)">
+        <div id="np-files-preview" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+      </div>
     </div>
     <div class="modal-f"><button class="btn btn-outline" onclick="closeModal('m-new-post')">Cancelar</button><button class="btn btn-gold" onclick="savePost()">Salvar</button></div>
   </div>
@@ -2684,7 +2695,8 @@ function openPostPopup(id){
       <select id="pdst" class="inp">${Object.entries(SL).map(([k,l])=>`<option value="${k}" ${p.status===k?'selected':''}>${l}</option>`).join('')}</select>
     </div>
     ${p.drive?`<div style="margin-bottom:12px"><a href="${p.drive}" target="_blank" style="color:var(--blue);font-size:13px;font-weight:600">🔗 Abrir no Drive</a></div>`:''}
-    ${p.legenda?`<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;font-size:12.5px;color:var(--text-2);line-height:1.6"><div style="font-size:10px;font-weight:700;color:var(--text-3);margin-bottom:6px">LEGENDA</div>${p.legenda}</div>`:''}
+    ${p.legenda?`<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:var(--text-3);margin-bottom:6px">LEGENDA</div>${p.legenda}</div>`:''}
+    ${(p.files&&p.files.length)?`<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--text-3);margin-bottom:8px;letter-spacing:1px">📸 ${p.files.length} ARQUIVO(S) ANEXADO(S)</div><div style="display:flex;flex-wrap:wrap;gap:8px">${p.files.map((f,i)=>f.type==='image'&&f.data?`<a href="${f.data}" download="${f.name}" target="_blank" style="position:relative;display:block;width:90px;height:90px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);text-decoration:none"><img src="${f.data}" style="width:100%;height:100%;object-fit:cover" title="${f.name}"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:2px;text-align:center">#${i+1}</div></a>`:f.type==='video'&&f.data?`<a href="${f.data}" download="${f.name}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:90px;height:90px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);text-decoration:none;color:var(--text)"><div style="font-size:30px">🎬</div><div style="font-size:9px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:84px;padding:0 3px">${f.name}</div></a>`:`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:90px;height:90px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg)"><div style="font-size:30px">📎</div><div style="font-size:9px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:84px;padding:0 3px">${f.name}</div></div>`).join('')}</div></div>`:''}
   `;
   openModal('m-post-detail');
 }
@@ -3149,9 +3161,12 @@ function renderCalGrid(){
     const dp=posts.filter(p=>p.date===ds);
     const isT=ds===todStr;
     const fmtC={reel:'cp-r',carrossel:'cp-c',estatico:'cp-e',stories:'cp-s'};
-    html+=`<div class="cal-day ${isT?'today':''}" data-date="${ds}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')" onclick="clickCalDay('${ds}')">
-      <div class="dn">${d}</div>
-      ${dp.map(p=>`<div class="cal-post ${fmtC[p.fmt]||''}" draggable="true" data-post-id="${p.id}" ondragstart="calDragStart(event,'${p.id}')" ondragend="calDragEnd(event)" ontouchstart="calTouchStart(event,'${p.id}')" ontouchmove="calTouchMove(event)" ontouchend="calTouchEnd(event)" onclick="event.stopPropagation();openPostPopup('${p.id}')" title="Arraste para mover">${p.tema.length>16?p.tema.substr(0,16)+'…':p.tema}</div>`).join('')}
+    html+=`<div class="cal-day ${isT?'today':''}" data-date="${ds}" ondragover="calDragOver(event)" ondragleave="calDragLeave(event)" ondrop="calDrop(event,'${ds}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="dn">${d}</div>
+        <button class="cal-add-btn" onclick="event.stopPropagation();clickCalDay('${ds}')" title="Adicionar post nesta data" style="background:var(--gold);color:var(--navy);border:none;border-radius:50%;width:18px;height:18px;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0">+</button>
+      </div>
+      ${dp.map(p=>`<div class="cal-post ${fmtC[p.fmt]||''}" draggable="true" data-post-id="${p.id}" ondragstart="calDragStart(event,'${p.id}')" ondragend="calDragEnd(event)" ontouchstart="calTouchStart(event,'${p.id}')" ontouchmove="calTouchMove(event)" ontouchend="calTouchEnd(event)" onclick="event.stopPropagation();openPostPopup('${p.id}')" title="Arraste para mover · Clique para abrir">${p.tema.length>20?p.tema.substr(0,18)+'…':p.tema}</div>`).join('')}
     </div>`;
   }
   document.getElementById('cal-body').innerHTML=html;
@@ -3230,13 +3245,106 @@ function renderWeekList(){
 function calPrev(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCalendar();}
 function calNext(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1);renderCalendar();}
 function setCalView(v){calView=v;document.getElementById('cv-month').style.display=v==='month'?'':'none';document.getElementById('cv-week').style.display=v==='week'?'':'none';document.getElementById('cv-m-btn').className='btn btn-sm '+(v==='month'?'btn-navy':'btn-outline');document.getElementById('cv-w-btn').className='btn btn-sm '+(v==='week'?'btn-navy':'btn-outline');}
-function clickCalDay(ds){document.getElementById('np-date').value=ds;openModal('m-new-post');}
+// Estado de arquivos sendo anexados ao post atual
+let _postFilesPending=[];
+function clickCalDay(ds){
+  // Resetar form para um NOVO post (limpa edição anterior)
+  document.getElementById('np-tema').value='';
+  document.getElementById('np-leg').value='';
+  document.getElementById('np-drive').value='';
+  document.getElementById('np-time').value='19:00';
+  document.getElementById('np-fmt').value='reel';
+  document.getElementById('np-status').value='pendente';
+  _postFilesPending=[];
+  renderPostFilesPreview();
+  document.getElementById('np-date').value=ds;
+  openModal('m-new-post');
+}
+// Comprime imagem antes de salvar (max 1280px largura, qualidade 0.8)
+async function compressImage(file,maxW=1280,quality=0.8){
+  if(!file.type.startsWith('image/'))return await fileToBase64(file);
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxW){h=h*(maxW/w);w=maxW;}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>resolve(null);
+    img.src=URL.createObjectURL(file);
+  });
+}
+function fileToBase64(file){
+  return new Promise(resolve=>{
+    const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>resolve(null);
+    r.readAsDataURL(file);
+  });
+}
+async function handlePostFiles(files){
+  const arr=Array.from(files||[]);
+  if(!arr.length)return;
+  toast(`Carregando ${arr.length} arquivo(s)...`,'ok');
+  for(const f of arr){
+    const isImg=f.type.startsWith('image/');
+    const isVideo=f.type.startsWith('video/');
+    let dataUrl=null;
+    if(isImg){
+      dataUrl=await compressImage(f);
+    }else if(isVideo&&f.size>4*1024*1024){
+      // Vídeo grande: não salvar inline, só nome
+      _postFilesPending.push({id:uid(),name:f.name,type:'video',size:fmtSize(f.size),tooLarge:true});
+      continue;
+    }else{
+      dataUrl=await fileToBase64(f);
+    }
+    if(dataUrl){
+      _postFilesPending.push({
+        id:uid(),
+        name:f.name,
+        type:isImg?'image':isVideo?'video':'file',
+        size:fmtSize(f.size),
+        data:dataUrl
+      });
+    }
+  }
+  renderPostFilesPreview();
+  toast(`✅ ${arr.length} arquivo(s) anexado(s)`,'ok');
+}
+function renderPostFilesPreview(){
+  const el=document.getElementById('np-files-preview');
+  if(!el)return;
+  if(!_postFilesPending.length){el.innerHTML='';return;}
+  el.innerHTML=_postFilesPending.map((f,i)=>`<div style="position:relative;width:78px;height:78px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center">
+    ${f.type==='image'&&f.data?`<img src="${f.data}" style="width:100%;height:100%;object-fit:cover">`:f.type==='video'?`<div style="text-align:center;font-size:24px">🎬<div style="font-size:8px;color:var(--text-3);padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:74px">${f.name}</div></div>`:`<div style="text-align:center;font-size:24px">📎</div>`}
+    <button onclick="removePendingFile(${i})" style="position:absolute;top:2px;right:2px;background:rgba(239,68,68,.95);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
+    ${f.tooLarge?'<div style="position:absolute;bottom:0;left:0;right:0;background:var(--orange);color:#fff;font-size:8px;text-align:center;padding:1px">grande</div>':''}
+  </div>`).join('');
+}
+function removePendingFile(i){_postFilesPending.splice(i,1);renderPostFilesPreview();}
 function savePost(){
   const tema=document.getElementById('np-tema').value.trim();if(!tema)return;
   if(!curCliId){toast('Erro: selecione um cliente antes','err');return;}
   const posts=S.get('posts',[]);
-  posts.push({id:uid(),cid:curCliId,tema,fmt:document.getElementById('np-fmt').value,date:document.getElementById('np-date').value,time:document.getElementById('np-time').value,resp:document.getElementById('np-resp').value,status:document.getElementById('np-status').value,legenda:document.getElementById('np-leg').value,drive:document.getElementById('np-drive').value});
-  S.set('posts',posts);closeModal('m-new-post');renderCalGrid();renderWeekList();toast('Post adicionado!','ok');
+  // Filtrar arquivos válidos (sem os "tooLarge" sem data)
+  const files=_postFilesPending.filter(f=>f.data);
+  posts.push({
+    id:uid(),cid:curCliId,tema,
+    fmt:document.getElementById('np-fmt').value,
+    date:document.getElementById('np-date').value,
+    time:document.getElementById('np-time').value,
+    resp:document.getElementById('np-resp').value,
+    status:document.getElementById('np-status').value,
+    legenda:document.getElementById('np-leg').value,
+    drive:document.getElementById('np-drive').value,
+    files:files
+  });
+  S.set('posts',posts);
+  _postFilesPending=[];
+  closeModal('m-new-post');
+  renderCalGrid();renderWeekList();
+  toast('Post adicionado'+(files.length?` · ${files.length} arquivo(s)`:'')+'!','ok');
 }
 function renderContList(){
   const all=S.get('conteudos',{});const list=all[curCliId]||[];
